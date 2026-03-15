@@ -1,103 +1,99 @@
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Search, BedDouble, UserCheck, Building2, MapPin, Star } from 'lucide-react';
-import heroImage from '@/assets/hostel-hero.jpg';
-import { mockHostels } from '@/services/mock-data';
-import { RatingStars } from '@/components/shared/RatingStars';
-import roomImage from '@/assets/room-single.jpg';
+import { Link } from "react-router-dom";
+import { ArrowRight, Globe2, Palette, ShieldCheck, Wallet } from "lucide-react";
+import heroImage from "@/assets/hostel-hero.jpg";
+import { Button } from "@/components/ui/button";
+import { useApp } from "@/contexts/AppContext";
 
-const steps = [
-  { icon: Search, title: 'Discover', desc: 'Browse available rooms near your campus' },
-  { icon: BedDouble, title: 'Reserve Bed', desc: 'Select your preferred room and bed' },
-  { icon: UserCheck, title: 'Move In', desc: 'Complete payment and check in' },
+const pillars = [
+  { icon: Globe2, title: "Whitelabel sites", copy: "Launch tenant and hostel websites with custom domains, multi-page content, and local preview URLs." },
+  { icon: Palette, title: "Tenant branding", copy: "Apply tenant themes across public pages, admin dashboards, and resident dashboards without splitting the product." },
+  { icon: Wallet, title: "Tenant-owned payments", copy: "Each tenant chooses one provider stack, enables supported methods, and keeps manual verification where needed." },
+  { icon: ShieldCheck, title: "Shared operations", copy: "Bookings, residents, tickets, reporting, and QR flows stay intact behind the new site entry points." },
 ];
 
 export default function LandingPage() {
+  const { database } = useApp();
+  const demoSites = database?.sites.filter((site) => site.status === "published").slice(0, 3) ?? [];
+
   return (
-    <div>
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="container py-12 sm:py-20 flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
-          <div className="flex-1 space-y-6 text-center lg:text-left">
-            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
-              Modern Hostel<br />Management Platform
-            </h1>
-            <p className="text-muted-foreground text-base sm:text-lg max-w-md mx-auto lg:mx-0">
-              Manage rooms, bookings, payments, and residents from one simple platform.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start">
+    <div className="pb-12">
+      <section
+        className="border-b text-primary-foreground"
+        style={{ background: "linear-gradient(135deg, hsl(var(--primary)), var(--brand-hero-to, hsl(var(--primary))))" }}
+      >
+        <div className="container grid gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-16">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
+              <Globe2 className="h-3.5 w-3.5" />
+              HostelHub Whitelabel
+            </div>
+            <div className="space-y-4">
+              <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                Tenant-hosted booking websites with one shared operations product underneath.
+              </h1>
+              <p className="max-w-2xl text-base text-white/80 sm:text-lg">
+                Each tenant gets its own site, domain setup, brand theme, payment configuration, and resident booking funnel while admin, resident, and support flows stay unified.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
               <Link to="/register">
-                <Button variant="hero" size="lg">Start Free</Button>
+                <Button variant="hero" size="lg">Start tenant setup</Button>
               </Link>
-              <Link to="/explore">
-                <Button variant="outline" size="lg">Explore Hostels ×</Button>
+              <Link to="/login">
+                <Button size="lg" variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15 hover:text-white">
+                  Open platform demo
+                </Button>
               </Link>
             </div>
           </div>
-          <div className="flex-1 max-w-xl">
-            <img src={heroImage} alt="Modern hostel building in Ghana" className="rounded-xl shadow-2xl w-full" />
-          </div>
-        </div>
-      </section>
 
-      {/* Steps */}
-      <section className="bg-card border-y py-12">
-        <div className="container">
-          <h2 className="font-display text-2xl font-bold text-center mb-8">Explore Hostels</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-2xl mx-auto">
-            {steps.map(step => (
-              <div key={step.title} className="flex flex-col items-center gap-2 text-center">
-                <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
-                  <step.icon className="h-6 w-6 text-foreground" />
-                </div>
-                <h3 className="font-display font-semibold text-sm">{step.title}</h3>
-                <p className="text-xs text-muted-foreground">{step.desc}</p>
+          <div className="rounded-[2rem] border border-white/15 bg-white/10 p-4 shadow-2xl shadow-black/20 backdrop-blur">
+            <img src={heroImage} alt="Whitelabel hostel platform" className="h-72 w-full rounded-[1.6rem] object-cover" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-white/10 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/70">Mode</p>
+                <p className="mt-2 font-display text-xl font-semibold">Whitelabel tenant sites</p>
               </div>
-            ))}
+              <div className="rounded-2xl bg-white/10 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/70">Payments</p>
+                <p className="mt-2 font-display text-xl font-semibold">Tenant-owned gateway setup</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Featured Hostels */}
-      <section className="py-12">
-        <div className="container">
-          <h2 className="font-display text-2xl font-bold text-center mb-8">Explore Hostels</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockHostels.map(hostel => (
-              <Link key={hostel.id} to={`/explore/${hostel.id}`} className="group">
-                <div className="bg-card rounded-xl border overflow-hidden transition-shadow hover:shadow-lg">
-                  <div className="aspect-video bg-muted overflow-hidden">
-                    <img src={roomImage} alt={hostel.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <h3 className="font-display font-semibold">{hostel.name}</h3>
-                      <RatingStars rating={hostel.rating} />
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      {hostel.university}
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-sm font-bold text-emerald">GHS {mockHostels[0].totalBeds > 0 ? '1,420' : '—'}</span>
-                      <span className="text-xs text-muted-foreground">{hostel.availableBeds} beds available</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+      <section className="container mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {pillars.map((item) => (
+          <article key={item.title} className="rounded-2xl border bg-card p-5">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+              <item.icon className="h-5 w-5" />
+            </div>
+            <h2 className="font-display text-lg font-semibold">{item.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{item.copy}</p>
+          </article>
+        ))}
       </section>
 
-      {/* Universities CTA */}
-      <section className="bg-primary py-12">
-        <div className="container text-center space-y-4">
-          <h2 className="font-display text-2xl font-bold text-primary-foreground">Find Hostels Near Your Campus</h2>
-          <p className="text-primary-foreground/70 max-w-md mx-auto">Browse hostels near University of Ghana, KNUST, UCC, and more.</p>
-          <Link to="/explore">
-            <Button variant="emerald" size="lg">Browse All Hostels</Button>
-          </Link>
+      <section className="container mt-10 space-y-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl font-semibold">Published demo sites</h2>
+            <p className="text-sm text-muted-foreground">Local previews use the `/:siteSlug/*` fallback so each tenant can still be tested on localhost.</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {demoSites.map((site) => (
+            <Link key={site.id} to={`/${site.slug}`} className="rounded-2xl border bg-card p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary">{site.renderMode === "custom_code" ? "Custom code" : "Template"}</p>
+              <h3 className="mt-3 font-display text-xl font-semibold">{site.name}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Slug preview: /{site.slug}</p>
+              <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-secondary">
+                Open site
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
     </div>

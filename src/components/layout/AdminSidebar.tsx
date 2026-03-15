@@ -2,55 +2,56 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApp } from '@/contexts/AppContext';
 import {
   LayoutDashboard, BedDouble, Users, CalendarDays, CreditCard,
-  Ticket, ClipboardList, QrCode, Bell, Building2, Settings,
-  BarChart3, LogOut, ChevronLeft, Home, Search, UserCircle,
+  Ticket, Building2, Settings, BarChart3, LogOut, ChevronLeft, UserCircle,
   ListChecks, DoorOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { UserRole } from '@/types';
+import { useSiteContext } from '@/contexts/SiteContext';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AdminCapability, hasAdminCapability } from '@/modules/admin/permissions';
 
-interface NavItem {
+export interface NavItem {
   label: string;
   path: string;
   icon: React.ElementType;
   roles: UserRole[];
+  capability?: AdminCapability;
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, roles: ['tenant_admin'] },
-  { label: 'Rooms', path: '/admin/rooms', icon: BedDouble, roles: ['tenant_admin'] },
-  { label: 'Residents', path: '/admin/residents', icon: Users, roles: ['tenant_admin'] },
-  { label: 'Bookings', path: '/admin/bookings', icon: CalendarDays, roles: ['tenant_admin'] },
-  { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['tenant_admin'] },
-  { label: 'Tickets', path: '/admin/tickets', icon: Ticket, roles: ['tenant_admin'] },
-  { label: 'Check-In/Out', path: '/admin/checkin', icon: DoorOpen, roles: ['tenant_admin'] },
-  { label: 'Waiting List', path: '/admin/waiting-list', icon: ListChecks, roles: ['tenant_admin'] },
-  { label: 'Periods', path: '/admin/periods', icon: CalendarDays, roles: ['tenant_admin'] },
-  { label: 'Pricing', path: '/admin/pricing', icon: CreditCard, roles: ['tenant_admin'] },
-  { label: 'Reports', path: '/admin/reports', icon: BarChart3, roles: ['tenant_admin'] },
-  { label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['tenant_admin'] },
+export const navItems: NavItem[] = [
+  { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, roles: ['tenant_admin'], capability: 'dashboard' },
+  { label: 'Rooms', path: '/admin/rooms', icon: BedDouble, roles: ['tenant_admin'], capability: 'rooms' },
+  { label: 'Residents', path: '/admin/residents', icon: Users, roles: ['tenant_admin'], capability: 'residents' },
+  { label: 'Bookings', path: '/admin/bookings', icon: CalendarDays, roles: ['tenant_admin'], capability: 'bookings' },
+  { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['tenant_admin'], capability: 'payments' },
+  { label: 'Tickets', path: '/admin/tickets', icon: Ticket, roles: ['tenant_admin'], capability: 'tickets' },
+  { label: 'Check-In/Out', path: '/admin/checkin', icon: DoorOpen, roles: ['tenant_admin'], capability: 'checkin' },
+  { label: 'Waiting List', path: '/admin/waiting-list', icon: ListChecks, roles: ['tenant_admin'], capability: 'waiting_list' },
+  { label: 'Periods', path: '/admin/periods', icon: CalendarDays, roles: ['tenant_admin'], capability: 'periods' },
+  { label: 'Pricing', path: '/admin/pricing', icon: CreditCard, roles: ['tenant_admin'], capability: 'pricing' },
+  { label: 'Reports', path: '/admin/reports', icon: BarChart3, roles: ['tenant_admin'], capability: 'reports' },
+  { label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['tenant_admin'], capability: 'settings' },
+  { label: 'Account', path: '/admin/account', icon: UserCircle, roles: ['tenant_admin'], capability: 'account' },
   // Platform owner
   { label: 'Platform', path: '/platform', icon: LayoutDashboard, roles: ['platform_owner'] },
   { label: 'Tenants', path: '/platform/tenants', icon: Building2, roles: ['platform_owner'] },
-  // Resident
-  { label: 'Home', path: '/resident', icon: Home, roles: ['resident'] },
-  { label: 'My Bookings', path: '/resident/bookings', icon: CalendarDays, roles: ['resident'] },
-  { label: 'Payments', path: '/resident/payments', icon: CreditCard, roles: ['resident'] },
-  { label: 'Tickets', path: '/resident/tickets', icon: Ticket, roles: ['resident'] },
-  { label: 'My QR ID', path: '/resident/qr', icon: QrCode, roles: ['resident'] },
-  { label: 'Notifications', path: '/resident/notifications', icon: Bell, roles: ['resident'] },
-  // Public
-  { label: 'Explore', path: '/explore', icon: Search, roles: ['resident', 'group_organizer'] },
-  // Group
-  { label: 'Group Booking', path: '/group-booking', icon: Users, roles: ['group_organizer'] },
+  { label: 'Analytics', path: '/platform/analytics', icon: BarChart3, roles: ['platform_owner'] },
+  { label: 'Features', path: '/platform/features', icon: Settings, roles: ['platform_owner'] },
+  { label: 'Account', path: '/platform/account', icon: UserCircle, roles: ['platform_owner'] },
 ];
 
 export function AdminSidebar() {
   const { currentRole, currentUser, sidebarOpen, setSidebarOpen, logout } = useApp();
+  const { activeTheme } = useSiteContext();
   const location = useLocation();
 
-  const filtered = navItems.filter(n => n.roles.includes(currentRole));
+  const filtered = navItems.filter((item) => {
+    if (!item.roles.includes(currentRole)) return false;
+    if (currentRole !== 'tenant_admin' || !item.capability) return true;
+    return hasAdminCapability(currentUser, item.capability);
+  });
 
   return (
     <>
@@ -65,7 +66,7 @@ export function AdminSidebar() {
       )}>
         {/* Logo */}
         <div className="flex items-center justify-between h-14 px-4 border-b border-sidebar-border">
-          {sidebarOpen && <span className="font-display font-bold text-lg">HostelHub</span>}
+          {sidebarOpen && <span className="font-display font-bold text-lg">{activeTheme?.logoText ?? "HostelHub"}</span>}
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-sidebar-foreground hover:bg-sidebar-accent">
             <ChevronLeft className={cn('h-4 w-4 transition-transform', !sidebarOpen && 'rotate-180')} />
           </Button>
@@ -75,7 +76,7 @@ export function AdminSidebar() {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {filtered.map(item => {
             const active = location.pathname === item.path;
-            return (
+            const link = (
               <Link
                 key={item.path}
                 to={item.path}
@@ -88,6 +89,17 @@ export function AdminSidebar() {
                 <item.icon className="h-4 w-4 shrink-0" />
                 {sidebarOpen && <span>{item.label}</span>}
               </Link>
+            );
+
+            if (sidebarOpen) return link;
+
+            return (
+              <Tooltip key={item.path}>
+                <TooltipTrigger asChild>{link}</TooltipTrigger>
+                <TooltipContent side="right" align="center">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
             );
           })}
         </nav>
