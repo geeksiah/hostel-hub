@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,29 +8,34 @@ import { Label } from "@/components/ui/label";
 import { AuthService } from "@/services";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
-import type { TenantType, UserRole } from "@/types";
-
-const accountTypes = [
-  { value: "resident" as const, label: "Student / Guest", description: "Book a room, pay, get receipts, and raise tickets." },
-  { value: "tenant_admin" as const, label: "Hostel operator", description: "Create your hostel profile and manage operations." },
-  { value: "group_organizer" as const, label: "Group organizer", description: "Request and pay for multi-bed allocations." },
-];
+import { getSiteHostels } from "@/modules/site/selectors";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { login } = useApp();
-  const { activeTheme, buildPublicPath } = useSiteContext();
-  const [role, setRole] = useState<UserRole>("resident");
+  const { database, login, session } = useApp();
+  const { activeTheme, buildPublicPath, preferredSite } = useSiteContext();
   const [residentType, setResidentType] = useState<"student" | "guest">("student");
-  const [tenantAccountType, setTenantAccountType] = useState<TenantType>("single");
-  const [hostelLimit, setHostelLimit] = useState(3);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const scopedHostel = useMemo(
+    () => (database && preferredSite ? getSiteHostels(database, preferredSite)[0] : undefined),
+    [database, preferredSite],
+  );
+  const schoolOptions = scopedHostel?.allowedSchools ?? (scopedHostel?.university ? [scopedHostel.university] : []);
+  const [institution, setInstitution] = useState(schoolOptions[0] ?? "");
 
   const handleRegister = async () => {
     if (!name || !email || !phone) {
       toast.error("Fill in your name, email, and phone number.");
+      return;
+    }
+    if (!scopedHostel) {
+      toast.error("This hostel is not ready for resident signup yet.");
+      return;
+    }
+    if (residentType === "student" && !institution) {
+      toast.error("Choose your school to continue.");
       return;
     }
 
@@ -38,26 +43,23 @@ export default function RegisterPage() {
       name,
       email,
       phone,
-      role,
+      role: "resident",
       residentType,
-      tenantAccountType,
-      hostelLimit,
+      tenantId: scopedHostel.tenantId,
+      hostelId: scopedHostel.id,
+      institution: residentType === "student" ? institution : scopedHostel.university,
     });
 
-    if (role === "tenant_admin") {
-      toast.success("Signup received. A platform owner must approve this tenant account before login.");
-      navigate("/login");
-      return;
-    }
-
-    const result = await login(role, email);
+    const result = await login("resident", email);
     if (!result.user) {
       toast.error(result.error ?? "The demo account could not be created.");
       return;
     }
     toast.success("Account created successfully.");
-    navigate(role === "group_organizer" ? "/group-booking" : "/resident");
+    navigate(session.pendingBooking ? "/payment" : "/resident");
   };
+
+  if (!database) return <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">Loading signup...</div>;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
@@ -67,22 +69,13 @@ export default function RegisterPage() {
             <Building2 className="h-6 w-6 text-secondary" />
             {activeTheme?.logoText ?? "HostelHub"}
           </Link>
-          <p className="text-sm text-muted-foreground">Create your account.</p>
+          <p className="text-sm text-muted-foreground">Create your resident account for {scopedHostel?.name ?? "this hostel"}.</p>
         </div>
 
         <div className="rounded-xl border bg-card p-6 space-y-4">
-          <div className="space-y-3">
-            {accountTypes.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setRole(item.value)}
-                className={`w-full rounded-lg border p-3 text-left transition ${role === item.value ? "border-emerald bg-emerald-light" : "hover:bg-muted"}`}
-              >
-                <p className="font-medium">{item.label}</p>
-                <p className="text-xs text-muted-foreground">{item.description}</p>
-              </button>
-            ))}
+          <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+            <p className="font-medium">{scopedHostel?.name ?? "Resident signup"}</p>
+            <p className="mt-1 text-muted-foreground">Your account will stay inside this hostel portal after signup.</p>
           </div>
 
           <div className="space-y-2">
@@ -97,63 +90,46 @@ export default function RegisterPage() {
             <Label>Phone</Label>
             <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+233 24 000 0000" />
           </div>
-          {role === "resident" ? (
+          <div className="space-y-2">
+            <Label>Account type</Label>
+            <select
+              value={residentType}
+              onChange={(event) => {
+                const nextType = event.target.value as typeof residentType;
+                setResidentType(nextType);
+                if (nextType === "guest") {
+                  setInstitution("");
+                } else if (!institution) {
+                  setInstitution(schoolOptions[0] ?? "");
+                }
+              }}
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="student">Student</option>
+              <option value="guest">Guest</option>
+            </select>
+          </div>
+          {residentType === "student" ? (
             <div className="space-y-2">
-              <Label>Resident type</Label>
+              <Label>School</Label>
               <select
-                value={residentType}
-                onChange={(event) => setResidentType(event.target.value as typeof residentType)}
+                value={institution}
+                onChange={(event) => setInstitution(event.target.value)}
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               >
-                <option value="student">Student</option>
-                <option value="guest">Individual guest</option>
+                <option value="">Select your school</option>
+                {schoolOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
               </select>
             </div>
-          ) : role === "tenant_admin" ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Tenant account type</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {[
-                    { value: "single" as const, label: "Single", description: "One hostel under one tenant account." },
-                    { value: "fleet" as const, label: "Fleet", description: "Multiple hostels with a platform-approved cap." },
-                  ].map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() => setTenantAccountType(item.value)}
-                      className={`rounded-lg border p-3 text-left transition ${tenantAccountType === item.value ? "border-emerald bg-emerald-light" : "hover:bg-muted"}`}
-                    >
-                      <p className="font-medium">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {tenantAccountType === "fleet" ? (
-                <div className="space-y-2">
-                  <Label>Expected hostel capacity</Label>
-                  <Input
-                    type="number"
-                    min={2}
-                    value={hostelLimit}
-                    onChange={(event) => setHostelLimit(Math.max(2, Number(event.target.value || 2)))}
-                    placeholder="3"
-                  />
-                  <p className="text-xs text-muted-foreground">Platform owner approval will decide the final fleet limit.</p>
-                </div>
-              ) : null}
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input type="password" placeholder="Demo password" />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>Password</Label>
-              <Input type="password" placeholder="Demo password" />
-            </div>
-          )}
+          ) : null}
+          <div className="space-y-2">
+            <Label>Password</Label>
+            <Input type="password" placeholder="Create a password" />
+          </div>
 
           <Button variant="emerald" className="w-full" onClick={handleRegister}>
             Create account

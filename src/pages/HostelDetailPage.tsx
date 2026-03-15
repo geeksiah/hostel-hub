@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams, Navigate } from "react-router-dom";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Carousel, CarouselApi, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RatingStars } from "@/components/shared/RatingStars";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { useApp } from "@/contexts/AppContext";
@@ -18,6 +20,12 @@ import { getHostelView } from "@/modules/catalog/selectors";
 import { getSiteHostels } from "@/modules/site/selectors";
 import { BookingService } from "@/services";
 
+function resolveRoomPrice(periodType: "semester" | "year" | "vacation" | undefined, semester: number, year: number, nightly: number) {
+  if (periodType === "year") return year;
+  if (periodType === "vacation") return nightly * 45;
+  return semester;
+}
+
 export default function HostelDetailPage() {
   const { hostelId = "" } = useParams();
   const location = useLocation();
@@ -27,21 +35,57 @@ export default function HostelDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [roomType, setRoomType] = useState<"all" | "single" | "double" | "triple" | "quad">("all");
+  const [selectedPeriodId, setSelectedPeriodId] = useState("");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
 
   useEffect(() => {
     if (lightboxOpen) carouselApi?.scrollTo(lightboxIndex);
   }, [carouselApi, lightboxIndex, lightboxOpen]);
 
-  if (!database) return <div className="container py-10">Loading hostel...</div>;
-
-  const { hostel, rooms, activePeriod } = getHostelView(database, hostelId);
+  const { hostel, rooms, periods, activePeriod } = useMemo(
+    () => (database ? getHostelView(database, hostelId) : { hostel: undefined, rooms: [], periods: [], activePeriod: undefined }),
+    [database, hostelId],
+  );
   const site = publicSite ?? preferredSite;
-  const allowedHostels = new Set(getSiteHostels(database, site).map((item) => item.id));
-  const currency = getHostelCurrency(database, hostelId);
+  const allowedHostels = useMemo(
+    () => new Set(database ? getSiteHostels(database, site).map((item) => item.id) : []),
+    [database, site],
+  );
+  const currency = database ? getHostelCurrency(database, hostelId) : "GHS";
   const browsePath = getBrowsePath(currentUser, buildPublicPath);
   const propertyPath = getPropertyPath(currentUser, hostelId, buildPublicPath);
   const gallery = resolveRoomGallery(hostel?.coverImages);
   const heroCards = gallery.slice(0, 3);
+  const selectedPeriod = periods.find((period) => period.id === selectedPeriodId) ?? activePeriod ?? periods[0];
+  const maxPriceForPeriod = rooms.length
+    ? Math.max(...rooms.map((room) => resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight)))
+    : 0;
+
+  useEffect(() => {
+    if (!selectedPeriodId && selectedPeriod?.id) {
+      setSelectedPeriodId(selectedPeriod.id);
+    }
+  }, [selectedPeriod?.id, selectedPeriodId]);
+
+  useEffect(() => {
+    setPriceRange([0, maxPriceForPeriod]);
+  }, [maxPriceForPeriod, selectedPeriod?.id]);
+
+  const filteredRooms = useMemo(
+    () =>
+      rooms.filter((room) => {
+        const nextPrice = resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight);
+        const matchesType = roomType === "all" || room.type === roomType;
+        const matchesPrice = nextPrice >= priceRange[0] && nextPrice <= priceRange[1];
+        return matchesType && matchesPrice;
+      }),
+    [priceRange, roomType, rooms, selectedPeriod?.type],
+  );
+  const selectedPriceLabel =
+    selectedPeriod?.type === "year" ? "Academic year price" : selectedPeriod?.type === "vacation" ? "Vacation estimate" : "Semester price";
+
+  if (!database) return <div className="container py-10">Loading hostel...</div>;
 
   if (!hostel || !allowedHostels.has(hostel.id)) {
     return (
@@ -60,9 +104,9 @@ export default function HostelDetailPage() {
       <BackBreadcrumbHeader
         title={hostel.name}
         backHref={browsePath}
-        backLabel="Back to properties"
+        backLabel="Back to rooms"
         breadcrumbs={[
-          { label: "Properties", href: browsePath },
+          { label: "Rooms", href: browsePath },
           { label: hostel.name },
         ]}
         mobileStickyOffsetClass="top-14"
@@ -107,10 +151,10 @@ export default function HostelDetailPage() {
                 </button>
               ))}
               <div className="rounded-xl border bg-card p-4">
-                <p className="text-xs text-muted-foreground">Active period</p>
-                <p className="mt-1 font-display text-lg font-semibold">{activePeriod?.name ?? "Flexible stay"}</p>
+                <p className="text-xs text-muted-foreground">Selected stay</p>
+                <p className="mt-1 font-display text-lg font-semibold">{selectedPeriod?.name ?? "Flexible stay"}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {activePeriod ? `${activePeriod.startDate} to ${activePeriod.endDate}` : "Select a period inside a room."}
+                  {selectedPeriod ? `${selectedPeriod.startDate} to ${selectedPeriod.endDate}` : "Select a period inside a room."}
                 </p>
               </div>
             </div>
@@ -132,12 +176,71 @@ export default function HostelDetailPage() {
               <div className="rounded-xl bg-muted px-4 py-3 text-right">
                 <p className="text-xs text-muted-foreground">Starting from</p>
                 <p className="font-display text-2xl font-semibold">
-                  {formatCurrency(Math.min(...rooms.map((room) => room.pricePerSemester)), currency)}
+                  {formatCurrency(
+                    rooms.length
+                      ? Math.min(...rooms.map((room) => resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight)))
+                      : 0,
+                    currency,
+                  )}
                 </p>
               </div>
             </div>
 
             <p className="mt-4 text-sm text-muted-foreground">{hostel.description}</p>
+
+            <div className="mt-5 rounded-xl border bg-muted/30 p-4">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Room type</Label>
+                  <select
+                    value={roomType}
+                    onChange={(event) => setRoomType(event.target.value as typeof roomType)}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    <option value="all">All room types</option>
+                    <option value="single">Single</option>
+                    <option value="double">Double</option>
+                    <option value="triple">Triple</option>
+                    <option value="quad">Quad</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Stay period</Label>
+                  <select
+                    value={selectedPeriod?.id ?? ""}
+                    onChange={(event) => setSelectedPeriodId(event.target.value)}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    {periods.map((period) => (
+                      <option key={period.id} value={period.id}>
+                        {period.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Min price</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={priceRange[0]}
+                    onChange={(event) => setPriceRange([Math.max(0, Number(event.target.value || 0)), priceRange[1]])}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Max price</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={priceRange[1]}
+                    onChange={(event) => setPriceRange([priceRange[0], Math.max(0, Number(event.target.value || 0))])}
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {filteredRooms.length} room types match this availability view.
+              </p>
+            </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <div className="rounded-xl bg-muted/60 p-4">
@@ -167,10 +270,23 @@ export default function HostelDetailPage() {
         </div>
 
         <div className="rounded-xl border bg-card p-5">
-          <h2 className="font-display text-lg font-semibold">Room types</h2>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Rooms and availability</h2>
+              <p className="text-sm text-muted-foreground">{selectedPeriod?.name ?? "Current stay view"}</p>
+            </div>
+            <div className="rounded-xl bg-muted px-4 py-3 text-right">
+              <p className="text-xs text-muted-foreground">Price view</p>
+              <p className="font-medium">{selectedPriceLabel}</p>
+            </div>
+          </div>
           <div className="mt-4 space-y-3">
-            {rooms.map((room, index) => {
+            {filteredRooms.length === 0 ? (
+              <EmptyState title="No rooms match these filters" description="Try a different room type or widen the price range." />
+            ) : null}
+            {filteredRooms.map((room, index) => {
               const availableBeds = database.beds.filter((bed) => bed.roomId === room.id && bed.status === "available").length;
+              const displayedPrice = resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight);
               return (
                 <div key={room.id} className="rounded-xl border p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -199,8 +315,8 @@ export default function HostelDetailPage() {
 
                   <div className="mt-4 space-y-3 sm:flex sm:items-end sm:justify-between sm:space-y-0">
                     <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Semester price</p>
-                      <p className="font-display text-2xl font-semibold leading-none whitespace-nowrap">{formatCurrency(room.pricePerSemester, currency)}</p>
+                      <p className="text-xs text-muted-foreground">{selectedPriceLabel}</p>
+                      <p className="font-display text-2xl font-semibold leading-none whitespace-nowrap">{formatCurrency(displayedPrice, currency)}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                       {availableBeds === 0 ? (
@@ -218,7 +334,7 @@ export default function HostelDetailPage() {
                               residentId: currentUser.id,
                               hostelId: hostel.id,
                               roomType: room.type,
-                              periodId: activePeriod?.id ?? "",
+                              periodId: selectedPeriod?.id ?? "",
                             });
                             await refreshData();
                             toast.success("Added to waiting list.");

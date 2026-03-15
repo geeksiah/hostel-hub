@@ -1,6 +1,6 @@
 import type { AppDatabase, BrandTheme, PaymentMethod, Site, SiteVersion, Tenant, TenantPaymentConfig } from "@/types";
 
-type SiteResolutionSource = "hostname" | "slug" | "none";
+type SiteResolutionSource = "hostname" | "slug" | "root_alias" | "none";
 
 function stripPort(hostname: string) {
   return hostname.replace(/:\d+$/, "").toLowerCase();
@@ -18,6 +18,14 @@ export function getDomainMapping(database: AppDatabase, hostname: string) {
 
 export function getSiteBySlug(database: AppDatabase, slug: string) {
   return database.sites.find((site) => site.slug === slug);
+}
+
+export function getDefaultPitchSite(database: AppDatabase) {
+  return (
+    database.sites.find((site) => site.id === "site2") ??
+    database.sites.find((site) => site.type === "hostel_microsite" && site.status === "published") ??
+    database.sites.find((site) => site.status === "published")
+  );
 }
 
 export function resolveSiteFromRequest(database: AppDatabase, pathname: string, hostname: string) {
@@ -64,6 +72,12 @@ export function getTenantSites(database: AppDatabase, tenantId: string | undefin
 export function getTenantHostels(database: AppDatabase, tenantId: string | undefined) {
   if (!tenantId) return [];
   return database.hostels.filter((hostel) => hostel.tenantId === tenantId);
+}
+
+export function getHostelSite(database: AppDatabase, hostelId: string | undefined) {
+  if (!hostelId) return undefined;
+  const hostel = database.hostels.find((candidate) => candidate.id === hostelId);
+  return hostel?.siteId ? database.sites.find((site) => site.id === hostel.siteId) : undefined;
 }
 
 export function getTenantPrimarySite(database: AppDatabase, tenantId: string | undefined) {

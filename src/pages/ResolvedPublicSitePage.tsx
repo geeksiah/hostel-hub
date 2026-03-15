@@ -120,7 +120,7 @@ export default function ResolvedPublicSitePage() {
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
                 <Globe2 className="h-3.5 w-3.5" />
-                {activeTenant?.name ?? publicSite.name}
+                {publicSite.type === "hostel_microsite" ? publicSite.name : activeTenant?.name ?? publicSite.name}
               </div>
               <div className="space-y-4">
                 <h1 className="max-w-3xl font-display text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">{content.headline}</h1>
@@ -225,7 +225,7 @@ export default function ResolvedPublicSitePage() {
             </p>
             <div className="mt-4">
               <Link to={getAppHomePath(currentUser)}>
-                <Button variant="outline">Open dashboard</Button>
+                <Button variant="outline">Open resident dashboard</Button>
               </Link>
             </div>
           </div>

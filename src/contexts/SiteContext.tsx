@@ -6,6 +6,8 @@ import { createBrandThemeStyle, mergeBrandTheme } from "@/lib/brand-theme";
 import {
   buildSitePath,
   buildSitePreviewPath,
+  getDefaultPitchSite,
+  getHostelSite,
   getSiteVersion,
   getTenantBrandTheme,
   getTenantForHostel,
@@ -17,7 +19,20 @@ import {
   stripSitePrefix,
 } from "@/modules/site/selectors";
 
-type SiteSource = "hostname" | "slug" | "none";
+type SiteSource = "hostname" | "slug" | "root_alias" | "none";
+
+function isPublicPitchPath(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/faq") ||
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/properties") ||
+    pathname.startsWith("/rooms") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register")
+  );
+}
 
 interface SiteContextValue {
   publicSite?: Site;
@@ -56,34 +71,48 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
     const hostname = typeof window !== "undefined" ? window.location.host : "";
     const { site: resolvedSite, source } = resolveSiteFromRequest(database, location.pathname, hostname);
+    const currentHostelId = currentUser?.hostelId ?? session.pendingBooking?.hostelId ?? session.currentHostelId;
     const currentHostelTenant =
       currentUser?.tenantId ??
       getTenantForHostel(database, currentUser?.hostelId)?.id ??
       getTenantForHostel(database, session.pendingBooking?.hostelId)?.id ??
       getTenantForHostel(database, session.currentHostelId)?.id;
-    const preferredSite = resolvedSite ?? getTenantPrimarySite(database, currentHostelTenant);
-    const activeTenantId = resolvedSite?.tenantId ?? preferredSite?.tenantId ?? currentHostelTenant;
+    const defaultPitchSite = getDefaultPitchSite(database);
+    const preferredSite =
+      resolvedSite ??
+      getHostelSite(database, currentHostelId) ??
+      getTenantPrimarySite(database, currentHostelTenant) ??
+      (isPublicPitchPath(location.pathname) ? defaultPitchSite : undefined);
+    const siteSource: SiteSource =
+      resolvedSite
+        ? source
+        : preferredSite && defaultPitchSite && preferredSite.id === defaultPitchSite.id
+          ? "root_alias"
+          : isLocalHostname(hostname)
+            ? "slug"
+            : source;
+    const publicFacingSite = resolvedSite ?? (preferredSite && siteSource === "root_alias" ? preferredSite : undefined);
+    const activeTenantId = publicFacingSite?.tenantId ?? preferredSite?.tenantId ?? currentHostelTenant;
     const activeTenant = activeTenantId ? database.tenants.find((tenant) => tenant.id === activeTenantId) : undefined;
     const baseTheme = getTenantBrandTheme(database, activeTenantId);
-    const activeTheme = baseTheme && resolvedSite ? mergeBrandTheme(baseTheme, resolvedSite.themeOverride) : baseTheme;
+    const activeTheme = baseTheme && publicFacingSite ? mergeBrandTheme(baseTheme, publicFacingSite.themeOverride) : baseTheme;
     const isPreviewMode = location.search.includes("preview=1") && Boolean(currentUser?.tenantId && currentUser.tenantId === resolvedSite?.tenantId);
-    const activeVersion = getSiteVersion(database, resolvedSite ?? preferredSite, isPreviewMode);
-    const localFallbackSource: SiteSource = isLocalHostname(hostname) ? "slug" : source;
+    const activeVersion = getSiteVersion(database, publicFacingSite ?? preferredSite, isPreviewMode);
 
     return {
-      publicSite: resolvedSite,
+      publicSite: publicFacingSite,
       preferredSite,
       activeTenant,
       activeTheme,
       activeVersion,
       activePaymentConfig: getTenantPaymentConfig(database, activeTenantId),
-      siteSource: resolvedSite ? source : localFallbackSource,
-      publicPathname: stripSitePrefix(location.pathname, resolvedSite, source),
+      siteSource,
+      publicPathname: stripSitePrefix(location.pathname, publicFacingSite ?? preferredSite, siteSource),
       isPreviewMode,
-      isPublicCustomCode: Boolean(resolvedSite && resolvedSite.renderMode === "custom_code"),
+      isPublicCustomCode: Boolean(publicFacingSite && publicFacingSite.renderMode === "custom_code"),
       tenantSites: getTenantSites(database, activeTenantId),
-      buildPublicPath: (path = "/") => buildSitePath(preferredSite, resolvedSite ? source : localFallbackSource, path),
-      buildPreviewPath: (path = "/") => buildSitePreviewPath(preferredSite, resolvedSite ? source : localFallbackSource, path),
+      buildPublicPath: (path = "/") => buildSitePath(preferredSite, siteSource, path),
+      buildPreviewPath: (path = "/") => buildSitePreviewPath(preferredSite, siteSource, path),
     };
   }, [currentUser?.hostelId, currentUser?.tenantId, database, location.pathname, location.search, session.currentHostelId, session.pendingBooking?.hostelId]);
 

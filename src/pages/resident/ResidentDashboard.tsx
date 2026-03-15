@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
 import { formatCurrency, getUserCurrency } from "@/lib/currency";
+import { getBrowsePath } from "@/lib/app-shell";
 import { getResidentWorkspace } from "@/modules/resident/selectors";
 import roomImage from "@/assets/room-single.jpg";
 import { resolveImageSource } from "@/lib/media";
@@ -19,7 +20,7 @@ export default function ResidentDashboard() {
 
   const workspace = getResidentWorkspace(database, currentUser.id);
   const latestPayment = workspace.payments[0];
-  const browsePath = buildPublicPath("/properties");
+  const browsePath = getBrowsePath(currentUser, buildPublicPath);
   const currency = getUserCurrency(database, currentUser.id);
 
   return (

@@ -44,7 +44,7 @@ export const navItems: NavItem[] = [
 
 export function AdminSidebar() {
   const { currentRole, currentUser, sidebarOpen, setSidebarOpen, logout } = useApp();
-  const { activeTheme } = useSiteContext();
+  const { activeTheme, buildPublicPath } = useSiteContext();
   const location = useLocation();
 
   const filtered = navItems.filter((item) => {
@@ -114,7 +114,7 @@ export function AdminSidebar() {
                 <p className="text-xs text-sidebar-foreground/50 capitalize">{currentRole.replace('_', ' ')}</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={logout} className="w-full justify-start text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground">
+            <Button variant="ghost" size="sm" onClick={() => logout(buildPublicPath("/"))} className="w-full justify-start text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground">
               <LogOut className="h-4 w-4 mr-2" /> Sign Out
             </Button>
           </div>

@@ -31,6 +31,7 @@ export const HostelService = {
       name: payload.name,
       location: payload.location ?? "",
       university: payload.university ?? "",
+      allowedSchools: payload.allowedSchools ?? (payload.university ? [payload.university] : []),
       description: payload.description ?? "",
       image: payload.image ?? "",
       coverImages: payload.coverImages ?? [],

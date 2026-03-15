@@ -102,6 +102,10 @@ export function normalizeDatabase(database: AppDatabase): AppDatabase {
 
   next.rooms.forEach((room) => syncRoomMetrics(next, room.id));
   next.hostels.forEach((hostel) => syncHostelMetrics(next, hostel.id));
+  next.hostels = next.hostels.map((hostel) => ({
+    ...hostel,
+    allowedSchools: hostel.allowedSchools?.length ? hostel.allowedSchools : hostel.university ? [hostel.university] : [],
+  }));
 
   next.waitingList = next.waitingList
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -177,8 +181,14 @@ export function normalizeDatabase(database: AppDatabase): AppDatabase {
       };
     }
 
+    const residentTenantId =
+      user.role === "resident" && !user.tenantId && user.hostelId
+        ? next.hostels.find((hostel) => hostel.id === user.hostelId)?.tenantId
+        : user.tenantId;
+
     return {
       ...user,
+      tenantId: residentTenantId,
       accountStatus: user.accountStatus ?? "active",
     };
   });

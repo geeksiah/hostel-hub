@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Bell, CalendarDays, CreditCard, Home, Search, User, Users } from "lucide-react";
+import { CalendarDays, CreditCard, Home, Search, Ticket, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
@@ -15,17 +15,14 @@ export function MobileBottomNav() {
   const browsePath = getBrowsePath(currentUser, buildPublicPath);
   const residentTabs = [
     { label: "Home", path: "/resident", icon: Home },
-    { label: "Browse", path: browsePath, icon: Search },
+    { label: "Rooms", path: browsePath, icon: Search },
     { label: "Bookings", path: "/resident/bookings", icon: CalendarDays },
-    { label: "Payments", path: "/resident/payments", icon: CreditCard },
-    { label: "Profile", path: "/resident/profile", icon: User },
+    { label: "Tickets", path: "/resident/tickets", icon: Ticket },
   ];
   const organizerTabs = [
     { label: "Home", path: "/group-booking", icon: Users },
-    { label: "Browse", path: browsePath, icon: Search },
+    { label: "Rooms", path: browsePath, icon: Search },
     { label: "Payments", path: "/payment", icon: CreditCard },
-    { label: "Alerts", path: "/group/notifications", icon: Bell },
-    { label: "Profile", path: "/group/profile", icon: User },
   ];
   const tabs = currentUser.role === "group_organizer" ? organizerTabs : residentTabs;
 

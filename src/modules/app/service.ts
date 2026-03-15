@@ -88,8 +88,11 @@ export const AuthService = {
     phone: string;
     role: UserRole;
     residentType?: ResidentProfile["residentType"];
+    institution?: string;
     tenantAccountType?: TenantType;
     hostelLimit?: number;
+    tenantId?: string;
+    hostelId?: string;
   }): Promise<ServiceResult<User>> {
     await delay();
     const database = readDatabase();
@@ -235,11 +238,19 @@ export const AuthService = {
     database.users.push(user);
 
     if (payload.role === "resident") {
+      const residentHostelId = payload.hostelId;
+      const residentTenantId = payload.tenantId ?? database.hostels.find((hostel) => hostel.id === residentHostelId)?.tenantId;
+      user.tenantId = residentTenantId;
+      user.hostelId = residentHostelId;
+
       database.residentProfiles.push({
         id: createId("resident"),
         userId: user.id,
         residentType: payload.residentType ?? "student",
-        institution: "University of Ghana",
+        institution:
+          payload.institution ??
+          database.hostels.find((hostel) => hostel.id === residentHostelId)?.university ??
+          "",
         emergencyContact: "",
         gender: "other",
       });

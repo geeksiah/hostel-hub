@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,16 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
 import type { UserRole } from "@/types";
-
-const seededAccounts = [
-  { role: "platform_owner" as const, label: "Platform owner", email: "owner@hostelhub.app" },
-  { role: "tenant_admin" as const, label: "Manager", email: "ops@dreamlandliving.co" },
-  { role: "tenant_admin" as const, label: "Receptionist", email: "frontdesk@dreamlandliving.co" },
-  { role: "tenant_admin" as const, label: "Accountant", email: "finance@dreamlandliving.co" },
-  { role: "tenant_admin" as const, label: "Security", email: "security@dreamlandliving.co" },
-  { role: "resident" as const, label: "Resident", email: "sarah@ug.edu.gh" },
-  { role: "group_organizer" as const, label: "Group organizer", email: "adaeze@fieldschool.africa" },
-];
+import { getSiteHostels } from "@/modules/site/selectors";
 
 function resolveRoute(role: UserRole, hasPendingBooking: boolean) {
   if (hasPendingBooking && role === "resident") return "/payment";
@@ -29,14 +20,17 @@ function resolveRoute(role: UserRole, hasPendingBooking: boolean) {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, session } = useApp();
-  const { activeTheme, buildPublicPath } = useSiteContext();
+  const { database, login, session } = useApp();
+  const { activeTheme, buildPublicPath, preferredSite } = useSiteContext();
   const [email, setEmail] = useState("sarah@ug.edu.gh");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("resident");
+  const scopedHostel = useMemo(
+    () => (database && preferredSite ? getSiteHostels(database, preferredSite)[0] : undefined),
+    [database, preferredSite],
+  );
 
-  const handleLogin = async (targetRole: UserRole, loginEmail?: string) => {
-    const result = await login(targetRole, loginEmail ?? email);
+  const handleLogin = async () => {
+    const result = await login("resident", email);
     if (!result.user) {
       toast.error(result.error ?? "No matching demo account found.");
       return;
@@ -53,26 +47,12 @@ export default function LoginPage() {
             <Building2 className="h-6 w-6 text-secondary" />
             {activeTheme?.logoText ?? "HostelHub"}
           </Link>
-          <p className="text-sm text-muted-foreground">Sign in to continue.</p>
+          <p className="text-sm text-muted-foreground">
+            Sign in to continue to {scopedHostel?.name ?? activeTheme?.logoText ?? "your hostel portal"}.
+          </p>
         </div>
 
         <div className="rounded-xl border bg-card p-6 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {seededAccounts.map((account) => (
-              <Button
-                key={`${account.role}-${account.email}`}
-                variant={role === account.role ? "emerald" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setRole(account.role);
-                  setEmail(account.email);
-                }}
-              >
-                {account.label}
-              </Button>
-            ))}
-          </div>
-
           <div className="space-y-2">
             <Label>Email</Label>
             <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
@@ -82,15 +62,15 @@ export default function LoginPage() {
             <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Demo password" />
           </div>
 
-          <Button variant="emerald" className="w-full" onClick={() => handleLogin(role)}>
-            Sign in
+          <Button variant="emerald" className="w-full" onClick={() => void handleLogin()}>
+            Resident login
           </Button>
         </div>
 
         <p className="text-center text-sm text-muted-foreground">
-          Need an account?{" "}
+          New to {scopedHostel?.name ?? "this hostel"}?{" "}
           <Link to="/register" className="font-medium text-emerald">
-            Create one
+            Create your account
           </Link>
         </p>
       </div>

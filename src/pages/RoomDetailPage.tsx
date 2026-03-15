@@ -67,9 +67,9 @@ export default function RoomDetailPage() {
       <BackBreadcrumbHeader
         title={`Room ${room.name}`}
         backHref={propertyPath}
-        backLabel="Back to property"
+        backLabel="Back to rooms"
         breadcrumbs={[
-          { label: "Properties", href: currentUser?.role === "resident" ? "/resident/properties" : currentUser?.role === "group_organizer" ? "/group/properties" : buildPublicPath("/properties") },
+          { label: "Rooms", href: currentUser?.role === "resident" ? "/resident/properties" : currentUser?.role === "group_organizer" ? "/group/properties" : buildPublicPath("/properties") },
           { label: hostel.name, href: propertyPath },
           { label: `Room ${room.name}` },
         ]}

@@ -16,7 +16,7 @@ interface AppContextType extends AppState {
   exploreFilters: ExploreFilters;
   pendingBooking: PendingBookingDraft | null;
   login: (role: UserRole, email?: string) => Promise<AuthAttemptResult>;
-  logout: () => void;
+  logout: (redirectTo?: string) => void;
   refreshData: () => Promise<void>;
   resetDemo: () => Promise<void>;
   switchRole: (role: UserRole) => Promise<AuthAttemptResult>;
@@ -68,10 +68,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const switchRole = useCallback(async (role: UserRole) => login(role), [login]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((redirectTo = "/") => {
     dispatch({ type: "RESET_SESSION" });
     if (typeof window !== "undefined") {
-      window.location.replace("/");
+      window.location.replace(redirectTo);
     }
   }, []);
 

@@ -60,12 +60,14 @@ export const ResidentService = {
   }): Promise<ServiceResult<User>> {
     await delay();
     const database = readDatabase();
+    const tenantId = database.hostels.find((hostel) => hostel.id === payload.hostelId)?.tenantId;
     const user: User = {
       id: createId("user"),
       name: payload.name,
       email: payload.email,
       phone: payload.phone,
       role: "resident",
+      tenantId,
       hostelId: payload.hostelId,
       createdAt: new Date().toISOString(),
     };

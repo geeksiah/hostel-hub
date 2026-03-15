@@ -150,6 +150,7 @@ export interface Hostel {
   name: string;
   location: string;
   university: string;
+  allowedSchools: string[];
   description: string;
   image: string;
   coverImages: string[];

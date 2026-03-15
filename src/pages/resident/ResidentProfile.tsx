@@ -18,12 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ResidentService } from "@/services";
 import { useApp } from "@/contexts/AppContext";
+import { useSiteContext } from "@/contexts/SiteContext";
 import { getStoredFileName, openStoredFile, serializeFiles } from "@/lib/files";
 import { resolveImageSource } from "@/lib/media";
 
 export default function ResidentProfile() {
   const navigate = useNavigate();
   const { database, currentUser, logout, refreshData } = useApp();
+  const { buildPublicPath } = useSiteContext();
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const profile = useMemo(() => database?.residentProfiles.find((item) => item.userId === currentUser?.id), [currentUser?.id, database]);
   const [form, setForm] = useState({
@@ -204,8 +206,8 @@ export default function ResidentProfile() {
               variant="outline"
               className="flex-1"
               onClick={() => {
-                logout();
-                navigate("/");
+                logout(buildPublicPath("/"));
+                navigate(buildPublicPath("/"));
               }}
             >
               Sign out

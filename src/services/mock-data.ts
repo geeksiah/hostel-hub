@@ -112,11 +112,11 @@ const dreamlandMicrositeDraft: SiteVersion = {
   templateContent: createTemplateContent({
     announcement: "Single, double, triple, and quad rooms are open for Semester 2.",
     eyebrow: "Dreamland Hostel",
-    headline: "Book rooms at Dreamland Hostel from its own branded landing site.",
+    headline: "Book a room at Dreamland Hostel from one direct resident portal.",
     subheadline:
       "This microsite focuses on one property while still sending residents into the shared payment, support, and resident dashboard flows.",
-    primaryCtaLabel: "Browse rooms",
-    primaryCtaHref: "/properties/h1",
+    primaryCtaLabel: "View rooms",
+    primaryCtaHref: "/properties",
   }),
 };
 
@@ -252,10 +252,10 @@ const featureFlags = [
 const users = [
   { id: "u1", name: "Kwame Asante", email: "owner@hostelhub.app", phone: "+233201234567", role: "platform_owner", accountStatus: "active", createdAt: "2025-01-01T10:00:00.000Z" },
   { id: "u2", name: "Ama Serwaa", email: "ops@dreamlandliving.co", phone: "+233209876543", role: "tenant_admin", tenantId: "t1", hostelId: "h1", adminAccountType: "manager", isTenantOwner: true, accountStatus: "active", createdAt: "2025-01-15T10:00:00.000Z" },
-  { id: "u3", name: "Sarah Mensah", email: "sarah@ug.edu.gh", phone: "+233241112233", role: "resident", hostelId: "h1", accountStatus: "active", createdAt: "2025-02-01T10:00:00.000Z" },
-  { id: "u4", name: "Kofi Boateng", email: "kofi@ug.edu.gh", phone: "+233244556677", role: "resident", hostelId: "h1", accountStatus: "active", createdAt: "2025-02-03T10:00:00.000Z" },
+  { id: "u3", name: "Sarah Mensah", email: "sarah@ug.edu.gh", phone: "+233241112233", role: "resident", tenantId: "t1", hostelId: "h1", accountStatus: "active", createdAt: "2025-02-01T10:00:00.000Z" },
+  { id: "u4", name: "Kofi Boateng", email: "kofi@ug.edu.gh", phone: "+233244556677", role: "resident", tenantId: "t1", hostelId: "h1", accountStatus: "active", createdAt: "2025-02-03T10:00:00.000Z" },
   { id: "u5", name: "Adaeze Nwosu", email: "adaeze@fieldschool.africa", phone: "+233247778899", role: "group_organizer", accountStatus: "active", createdAt: "2025-02-20T10:00:00.000Z" },
-  { id: "u6", name: "Joan Lamptey", email: "joan@ug.edu.gh", phone: "+233240009944", role: "resident", hostelId: "h2", accountStatus: "active", createdAt: "2025-02-24T10:00:00.000Z" },
+  { id: "u6", name: "Joan Lamptey", email: "joan@ug.edu.gh", phone: "+233240009944", role: "resident", tenantId: "t1", hostelId: "h2", accountStatus: "active", createdAt: "2025-02-24T10:00:00.000Z" },
   { id: "u7", name: "Kwaku Ofori", email: "ops@greenviewhostels.com", phone: "+233205554433", role: "tenant_admin", tenantId: "t2", hostelId: "h3", adminAccountType: "manager", isTenantOwner: true, accountStatus: "active", createdAt: "2025-02-28T09:00:00.000Z" },
   { id: "u8", name: "Esi Addo", email: "hello@campuslivingghana.com", phone: "+233260112244", role: "tenant_admin", tenantId: "t3", adminAccountType: "manager", isTenantOwner: true, accountStatus: "pending", createdAt: "2025-03-01T10:00:00.000Z" },
   { id: "u9", name: "Benjamin Tetteh", email: "frontdesk@dreamlandliving.co", phone: "+233244900100", role: "tenant_admin", tenantId: "t1", hostelId: "h1", adminAccountType: "receptionist", accountStatus: "active", createdAt: "2025-03-03T08:00:00.000Z" },
@@ -564,9 +564,9 @@ const tenantNotificationConfigs = [
 }) satisfies AppDatabase["tenantNotificationConfigs"];
 
 const hostels = [
-  { id: "h1", tenantId: "t1", siteId: "site2", name: "Dreamland Hostel", location: "East Legon, Accra", university: "University of Ghana", description: "Premium student accommodation with modern study lounges, secured gates, and easy campus access.", image: "", coverImages: ["dreamland-1", "dreamland-2"], rules: ["No loud music after 10PM", "Visitors must leave by 8PM", "No cooking inside rooms"], amenities: ["WiFi", "Study lounge", "Water backup", "Laundry room"], contact: { phone: "+233201234567", email: "info@dreamlandliving.co" }, rating: 4.7, totalBeds: 200, availableBeds: 36, genderPolicy: "mixed", checkInTime: "09:00", checkOutTime: "12:00" },
-  { id: "h2", tenantId: "t1", name: "Dreamland Annex", location: "Madina, Accra", university: "University of Ghana", description: "Affordable hostel with direct shuttle access and flexible semester pricing.", image: "", coverImages: ["annex-1", "annex-2"], rules: ["No pets", "Waste sorting required", "Quiet hours start at 9PM"], amenities: ["WiFi", "Shuttle stop", "Kitchenette", "CCTV"], contact: { phone: "+233201234568", email: "annex@dreamlandliving.co" }, rating: 4.2, totalBeds: 120, availableBeds: 18, genderPolicy: "female_only", checkInTime: "10:00", checkOutTime: "11:30" },
-  { id: "h3", tenantId: "t2", name: "GreenView Residence", location: "Kumasi", university: "KNUST", description: "Solar-powered student housing with shared workspaces and balanced pricing.", image: "", coverImages: ["greenview-1", "greenview-2"], rules: ["Energy-saving rules apply", "No smoking", "Common areas close at midnight"], amenities: ["Solar", "WiFi", "Gym corner", "Reading room"], contact: { phone: "+233301234567", email: "hello@greenviewhostels.com" }, rating: 4.4, totalBeds: 150, availableBeds: 42, genderPolicy: "mixed", checkInTime: "08:30", checkOutTime: "12:00" },
+  { id: "h1", tenantId: "t1", siteId: "site2", name: "Dreamland Hostel", location: "East Legon, Accra", university: "University of Ghana", allowedSchools: ["University of Ghana", "Academic City", "Ashesi University"], description: "Premium student accommodation with modern study lounges, secured gates, and easy campus access.", image: "", coverImages: ["dreamland-1", "dreamland-2"], rules: ["No loud music after 10PM", "Visitors must leave by 8PM", "No cooking inside rooms"], amenities: ["WiFi", "Study lounge", "Water backup", "Laundry room"], contact: { phone: "+233201234567", email: "info@dreamlandliving.co" }, rating: 4.7, totalBeds: 200, availableBeds: 36, genderPolicy: "mixed", checkInTime: "09:00", checkOutTime: "12:00" },
+  { id: "h2", tenantId: "t1", name: "Dreamland Annex", location: "Madina, Accra", university: "University of Ghana", allowedSchools: ["University of Ghana"], description: "Affordable hostel with direct shuttle access and flexible semester pricing.", image: "", coverImages: ["annex-1", "annex-2"], rules: ["No pets", "Waste sorting required", "Quiet hours start at 9PM"], amenities: ["WiFi", "Shuttle stop", "Kitchenette", "CCTV"], contact: { phone: "+233201234568", email: "annex@dreamlandliving.co" }, rating: 4.2, totalBeds: 120, availableBeds: 18, genderPolicy: "female_only", checkInTime: "10:00", checkOutTime: "11:30" },
+  { id: "h3", tenantId: "t2", name: "GreenView Residence", location: "Kumasi", university: "KNUST", allowedSchools: ["KNUST"], description: "Solar-powered student housing with shared workspaces and balanced pricing.", image: "", coverImages: ["greenview-1", "greenview-2"], rules: ["Energy-saving rules apply", "No smoking", "Common areas close at midnight"], amenities: ["Solar", "WiFi", "Gym corner", "Reading room"], contact: { phone: "+233301234567", email: "hello@greenviewhostels.com" }, rating: 4.4, totalBeds: 150, availableBeds: 42, genderPolicy: "mixed", checkInTime: "08:30", checkOutTime: "12:00" },
 ] satisfies AppDatabase["hostels"];
 
 const blocks = [
