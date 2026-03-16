@@ -12,23 +12,23 @@ interface MetricCardProps {
 }
 
 const variantStyles = {
-  default: "bg-card border",
-  emerald: "bg-emerald-light border-emerald/20",
-  amber: "bg-amber-light border-amber/20",
-  navy: "bg-primary text-primary-foreground",
+  default: "surface-card bg-card",
+  emerald: "rounded-2xl border border-emerald/15 bg-emerald-light",
+  amber: "rounded-2xl border border-amber/15 bg-amber-light",
+  navy: "rounded-2xl border border-primary/10 bg-primary text-primary-foreground shadow-[0_10px_30px_rgba(15,23,42,0.10)]",
 };
 
 export function MetricCard({ title, value, subtitle, icon: Icon, trend, variant = "default", className }: MetricCardProps) {
   return (
-    <div className={cn("min-w-0 overflow-hidden rounded-lg p-4 sm:p-5", variantStyles[variant], className)}>
+    <div className={cn("min-w-0 overflow-hidden p-5 sm:p-6", variantStyles[variant], className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1">
-          <p className={cn("text-xs font-medium uppercase tracking-wider", variant === "navy" ? "text-primary-foreground/70" : "text-muted-foreground")}>
+          <p className={cn("text-[12px] font-medium uppercase tracking-[0.18em]", variant === "navy" ? "text-primary-foreground/70" : "text-muted-foreground")}>
             {title}
           </p>
-          <p className="break-words font-display text-xl font-bold leading-tight sm:text-2xl">{value}</p>
+          <p className="break-words font-display text-[1.75rem] font-semibold leading-tight">{value}</p>
           {subtitle ? (
-            <p className={cn("break-words text-xs", variant === "navy" ? "text-primary-foreground/60" : "text-muted-foreground")}>
+            <p className={cn("break-words text-sm", variant === "navy" ? "text-primary-foreground/70" : "text-muted-foreground")}>
               {subtitle}
             </p>
           ) : null}
@@ -39,7 +39,7 @@ export function MetricCard({ title, value, subtitle, icon: Icon, trend, variant 
           ) : null}
         </div>
         {Icon ? (
-          <div className={cn("shrink-0 rounded-lg p-2", variant === "navy" ? "bg-primary-foreground/10" : "bg-muted")}>
+          <div className={cn("shrink-0 rounded-2xl p-3", variant === "navy" ? "bg-primary-foreground/10" : "bg-background")}>
             <Icon className="h-5 w-5" />
           </div>
         ) : null}

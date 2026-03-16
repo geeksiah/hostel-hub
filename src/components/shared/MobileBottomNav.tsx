@@ -27,8 +27,8 @@ export function MobileBottomNav() {
   const tabs = currentUser.role === "group_organizer" ? organizerTabs : residentTabs;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:hidden">
-      <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-2">
+    <nav className="fixed bottom-4 left-0 right-0 z-40 px-4 md:hidden">
+      <div className="mx-auto flex h-16 max-w-md items-center justify-around rounded-[20px] border border-border/80 bg-card/96 px-2 shadow-[0_10px_30px_rgba(16,24,40,0.10)] backdrop-blur-xl">
         {tabs.map((tab) => {
           const active = isAppRouteActive(tab.path, location.pathname);
           return (
@@ -36,8 +36,8 @@ export function MobileBottomNav() {
               key={tab.path}
               to={tab.path}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[11px] font-medium transition-colors",
-                active ? "text-emerald" : "text-muted-foreground",
+                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition-colors",
+                active ? "bg-secondary/10 text-secondary" : "text-muted-foreground",
               )}
             >
               <tab.icon className="h-5 w-5" />

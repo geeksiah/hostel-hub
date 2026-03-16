@@ -58,6 +58,8 @@ const App = () => (
               {/* Auth */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/:siteSlug/login" element={<LoginPage />} />
+              <Route path="/:siteSlug/register" element={<RegisterPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
 
               {/* Admin */}

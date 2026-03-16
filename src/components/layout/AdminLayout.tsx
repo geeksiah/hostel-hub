@@ -32,18 +32,18 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full bg-background">
       <AdminSidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur">
-          <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-4 py-2 lg:px-8 xl:px-10">
+        <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+          <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-8 xl:px-10">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
-              <div className="hidden sm:block">
+              <div className="hidden sm:block space-y-0.5">
                 <p className="text-sm font-medium">{currentPage?.label ?? currentRole.replace(/_/g, " ")}</p>
-                <p className="text-xs text-muted-foreground">{currentContextLabel}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{currentContextLabel}</p>
               </div>
             </div>
 
@@ -52,7 +52,7 @@ export function AdminLayout() {
                 <select
                   value={session.currentHostelId}
                   onChange={(event) => setCurrentHostelId(event.target.value)}
-                  className="h-10 rounded-md border bg-background px-3 text-sm"
+                  className="h-11 rounded-[10px] border border-border bg-card px-4 text-sm shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
                 >
                   {tenantHostels.map((hostel) => (
                     <option key={hostel.id} value={hostel.id}>
@@ -63,7 +63,7 @@ export function AdminLayout() {
               ) : null}
               {currentRole === 'tenant_admin' ? <NotificationTray basePath="/admin/notifications" notifications={notifications} /> : null}
               {currentUser && (
-                <div className="hidden sm:flex items-center gap-2 text-sm">
+                <div className="hidden sm:flex items-center gap-2 rounded-full border border-border/80 bg-card px-3 py-2 text-sm shadow-[0_1px_2px_rgba(16,24,40,0.02)]">
                   <span className="font-medium">{currentUser.name}</span>
                   {unreadNotifications > 0 ? <span className="text-xs text-muted-foreground">{unreadNotifications} unread</span> : null}
                 </div>

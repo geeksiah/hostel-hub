@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2 } from "lucide-react";
+import { ArrowRight, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { Container } from "@/components/shared/Container";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthService } from "@/services";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
@@ -62,87 +64,103 @@ export default function RegisterPage() {
   if (!database) return <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">Loading signup...</div>;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-md space-y-6 lg:max-w-lg">
-        <div className="text-center space-y-2">
-          <Link to={buildPublicPath("/")} className="inline-flex items-center gap-2 font-display text-xl font-bold">
-            <Building2 className="h-6 w-6 text-secondary" />
+    <div className="min-h-screen bg-background">
+      <Container className="flex min-h-screen items-center justify-center py-10">
+        <div className="w-full max-w-[520px] space-y-6">
+          <Link to={buildPublicPath("/")} className="inline-flex items-center gap-2 font-display text-lg font-semibold tracking-tight text-foreground">
+            <Building2 className="h-5 w-5 text-secondary" />
             {activeTheme?.logoText ?? "HostelHub"}
           </Link>
-          <p className="text-sm text-muted-foreground">Create your resident account for {scopedHostel?.name ?? "this hostel"}.</p>
-        </div>
 
-        <div className="rounded-xl border bg-card p-6 space-y-4">
-          <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-            <p className="font-medium">{scopedHostel?.name ?? "Resident signup"}</p>
-            <p className="mt-1 text-muted-foreground">Your account will stay inside this hostel portal after signup.</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Full name</Label>
-            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Kwesi Owusu" />
-          </div>
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-          </div>
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+233 24 000 0000" />
-          </div>
-          <div className="space-y-2">
-            <Label>Account type</Label>
-            <select
-              value={residentType}
-              onChange={(event) => {
-                const nextType = event.target.value as typeof residentType;
-                setResidentType(nextType);
-                if (nextType === "guest") {
-                  setInstitution("");
-                } else if (!institution) {
-                  setInstitution(schoolOptions[0] ?? "");
-                }
-              }}
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="student">Student</option>
-              <option value="guest">Guest</option>
-            </select>
-          </div>
-          {residentType === "student" ? (
-            <div className="space-y-2">
-              <Label>School</Label>
-              <select
-                value={institution}
-                onChange={(event) => setInstitution(event.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="">Select your school</option>
-                {schoolOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+          <div className="surface-card p-6 sm:p-8">
+            <div className="space-y-3">
+              <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Create account</p>
+              <h1 className="font-display text-[2rem] font-semibold tracking-tight text-foreground">Join the hostel portal</h1>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Create your resident profile for {scopedHostel?.name ?? "this hostel"}.
+              </p>
             </div>
-          ) : null}
-          <div className="space-y-2">
-            <Label>Password</Label>
-            <Input type="password" placeholder="Create a password" />
+
+            <div className="mt-8 grid gap-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2.5">
+                  <Label htmlFor="full-name">Full name</Label>
+                  <Input id="full-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Kwesi Owusu" />
+                </div>
+                <div className="space-y-2.5">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input id="phone" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+233 24 000 0000" />
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2.5">
+                  <Label>Account type</Label>
+                  <Select
+                    value={residentType}
+                    onValueChange={(value: "student" | "guest") => {
+                      setResidentType(value);
+                      if (value === "guest") {
+                        setInstitution("");
+                      } else if (!institution) {
+                        setInstitution(schoolOptions[0] ?? "");
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select account type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="guest">Guest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {residentType === "student" ? (
+                  <div className="space-y-2.5">
+                    <Label>School</Label>
+                    <Select value={institution} onValueChange={setInstitution}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your school" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {schoolOptions.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-2.5">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" placeholder="Create a password" />
+              </div>
+
+              <Button variant="emerald" size="lg" className="w-full" onClick={() => void handleRegister()}>
+                Create account
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          <Button variant="emerald" className="w-full" onClick={handleRegister}>
-            Create account
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Already registered?{" "}
+            <Link to={buildPublicPath("/login")} className="font-medium text-secondary transition-colors hover:text-secondary/80">
+              Sign in
+            </Link>
+          </p>
         </div>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link to="/login" className="font-medium text-emerald">
-            Sign in
-          </Link>
-        </p>
-      </div>
+      </Container>
     </div>
   );
 }

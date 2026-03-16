@@ -4,11 +4,11 @@ import type { BookingStatus, PaymentStatus, TicketStatus } from '@/types';
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 const variantClasses: Record<BadgeVariant, string> = {
-  success: 'bg-emerald-light text-emerald border-emerald/20',
-  warning: 'bg-amber-light text-amber border-amber/20',
-  error: 'bg-destructive/10 text-destructive border-destructive/20',
-  info: 'bg-primary/10 text-primary border-primary/20',
-  neutral: 'bg-muted text-muted-foreground border-border',
+  success: 'bg-emerald-light text-emerald border-emerald/15',
+  warning: 'bg-amber-light text-amber border-amber/15',
+  error: 'bg-destructive/10 text-destructive border-destructive/15',
+  info: 'bg-primary/8 text-primary border-primary/10',
+  neutral: 'bg-muted/70 text-muted-foreground border-border/80',
 };
 
 function getBookingVariant(status: BookingStatus): BadgeVariant {
@@ -56,7 +56,7 @@ export function StatusBadge({ status, type = 'custom', variant, className }: Sta
 
   return (
     <span className={cn(
-      'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize',
+      'inline-flex items-center rounded-full border px-2.5 py-1 text-[12px] font-medium capitalize',
       variantClasses[resolved],
       className,
     )}>

@@ -1,33 +1,42 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Building2, Shield, TrendingUp, Users } from "lucide-react";
+import { Grid } from "@/components/shared/Grid";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SurfacePanel } from "@/components/shared/SurfacePanel";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApp } from "@/contexts/AppContext";
 import { getPlatformWorkspace } from "@/modules/platform/selectors";
 
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[16px] bg-muted/35 px-4 py-4">
+      <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
+
 export default function PlatformDashboard() {
   const { database } = useApp();
-
   const workspace = useMemo(() => (database ? getPlatformWorkspace(database) : null), [database]);
 
   if (!workspace || !database) return <div className="py-10">Loading platform...</div>;
 
   const { metrics, tenants, detail } = workspace;
-  const recentTenants = tenants.slice(0, 5);
   const enabledFlags = database.featureFlags.filter((flag) => flag.enabled).length;
   const totalFlags = database.featureFlags.length;
+  const recentTenants = tenants.slice(0, 6);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Platform overview"
-        description="Platform snapshot."
+        title="Platform"
+        description="Cross-tenant operations and readiness"
         actions={
-          <div className="flex flex-wrap gap-2">
+          <>
             <Link to="/platform/analytics">
               <Button variant="outline" size="sm">
                 Analytics
@@ -35,165 +44,124 @@ export default function PlatformDashboard() {
             </Link>
             <Link to="/platform/tenants">
               <Button variant="emerald" size="sm">
-                Manage tenants
+                Tenants
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-          </div>
+          </>
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard title="Total tenants" value={metrics.totalTenants} icon={Building2} variant="navy" />
+      <SurfacePanel className="p-6 sm:p-7">
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-end">
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Control center</p>
+              <h2 className="font-display text-[2rem] font-semibold leading-[1.02] tracking-tight text-foreground sm:text-[2.4rem]">
+                Platform health at a glance
+              </h2>
+              <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
+                Track tenant performance, operational readiness, and feature rollout without switching context.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InfoTile label="Tenants" value={`${metrics.totalTenants} total`} />
+              <InfoTile label="Readiness" value={detail ? `${detail.tenant.name} in focus` : "No tenant selected"} />
+              <InfoTile label="Flags" value={`${enabledFlags}/${totalFlags} enabled`} />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link to="/platform/tenants">
+              <Button variant="emerald" className="w-full">
+                Manage tenants
+              </Button>
+            </Link>
+            <Link to="/platform/features">
+              <Button variant="outline" className="w-full">
+                Feature flags
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </SurfacePanel>
+
+      <Grid className="md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard title="Tenants" value={metrics.totalTenants} icon={Building2} variant="navy" />
         <MetricCard title="Active" value={metrics.activeTenants} icon={Shield} variant="emerald" />
         <MetricCard title="Residents" value={metrics.totalResidents} icon={Users} />
         <MetricCard title="Revenue" value={`GHS ${metrics.totalRevenue.toLocaleString()}`} icon={TrendingUp} />
-      </div>
+      </Grid>
 
-      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-5">
-          <div className="overflow-hidden rounded-2xl border bg-card">
-            <div className="border-b px-4 py-3">
-              <h2 className="font-display text-lg font-semibold">Recent tenants</h2>
-              <p className="text-sm text-muted-foreground">Latest tenant accounts and current status.</p>
+      <Grid className="xl:grid-cols-[1.02fr_0.98fr]">
+        <SurfacePanel title="Recent tenants" description="Newest tenant accounts and their current state.">
+          <div className="space-y-3">
+            {recentTenants.map((tenant) => (
+              <div key={tenant.id} className="flex items-center justify-between gap-3 rounded-[18px] border border-border/70 bg-background px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{tenant.name}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {tenant.hostels.length} hostels · {tenant.createdAt.slice(0, 10)}
+                  </p>
+                </div>
+                <StatusBadge
+                  status={tenant.status}
+                  variant={tenant.status === "active" ? "success" : tenant.status === "suspended" ? "error" : "warning"}
+                />
+              </div>
+            ))}
+          </div>
+        </SurfacePanel>
+
+        <SurfacePanel title={detail?.tenant.name ?? "Tenant focus"} description="Operational readiness for the highlighted tenant.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[18px] bg-muted/35 px-4 py-4">
+              <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Revenue</p>
+              <p className="mt-2 font-display text-[1.75rem] font-semibold tracking-tight text-foreground">
+                GHS {detail?.revenue.toLocaleString()}
+              </p>
             </div>
-            <Table>
-              <TableHeader className="bg-muted/60">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Hostels</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentTenants.map((tenant) => (
-                  <TableRow key={tenant.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{tenant.name}</p>
-                        <p className="text-xs text-muted-foreground">{tenant.id}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        status={tenant.status}
-                        variant={tenant.status === "active" ? "success" : tenant.status === "suspended" ? "error" : "warning"}
-                      />
-                    </TableCell>
-                    <TableCell>{tenant.hostels.length}</TableCell>
-                    <TableCell>{tenant.createdAt.slice(0, 10)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="rounded-[18px] bg-muted/35 px-4 py-4">
+              <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Residents</p>
+              <p className="mt-2 font-display text-[1.75rem] font-semibold tracking-tight text-foreground">{detail?.residents ?? 0}</p>
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border bg-card p-5">
-              <h2 className="font-display text-lg font-semibold">Status mix</h2>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Active tenants</span>
-                  <span className="font-semibold">{metrics.activeTenants}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Suspended tenants</span>
-                  <span className="font-semibold">{metrics.suspendedTenants}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Total hostels</span>
-                  <span className="font-semibold">{metrics.totalHostels}</span>
-                </div>
-              </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3 rounded-[16px] bg-muted/35 px-4 py-3">
+              <span className="text-sm text-muted-foreground">Website</span>
+              <span className="font-medium text-foreground">{detail?.readiness.website ? "Live" : "Draft"}</span>
             </div>
-
-            <div className="rounded-2xl border bg-card p-5">
-              <h2 className="font-display text-lg font-semibold">Feature adoption</h2>
-              <div className="mt-4 space-y-3">
-                <div className="rounded-xl bg-muted/60 p-3">
-                  <p className="text-xs text-muted-foreground">Enabled flags</p>
-                  <p className="font-display text-2xl font-semibold">{enabledFlags}/{totalFlags}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">Roll product access out tenant by tenant from the feature flags page.</p>
-                <Link to="/platform/features" className="inline-flex items-center text-sm font-medium text-emerald">
-                  Open feature flags
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </div>
+            <div className="flex items-center justify-between gap-3 rounded-[16px] bg-muted/35 px-4 py-3">
+              <span className="text-sm text-muted-foreground">Domain</span>
+              <span className="font-medium text-foreground">{detail?.readiness.domain ? "Verified" : "Pending"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-[16px] bg-muted/35 px-4 py-3">
+              <span className="text-sm text-muted-foreground">Brand</span>
+              <span className="font-medium text-foreground">{detail?.readiness.brand ? "Ready" : "Missing"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-[16px] bg-muted/35 px-4 py-3">
+              <span className="text-sm text-muted-foreground">Payments</span>
+              <span className="font-medium text-foreground">{detail?.readiness.payments ? "Live" : "Setup"}</span>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border bg-card p-5">
-            <div className="flex items-start justify-between gap-3">
+          <div className="mt-4 rounded-[18px] border border-border/70 bg-background px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="font-display text-lg font-semibold">{detail?.tenant.name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {detail?.hostels.length} hostels / {detail?.residents} residents
+                <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Feature rollout</p>
+                <p className="mt-2 text-lg font-semibold tracking-tight text-foreground">
+                  {enabledFlags}/{totalFlags} enabled
                 </p>
               </div>
-              <StatusBadge
-                status={detail?.tenant.status ?? "pending"}
-                variant={
-                  detail?.tenant.status === "active"
-                    ? "success"
-                    : detail?.tenant.status === "suspended"
-                      ? "error"
-                      : "warning"
-                }
-              />
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-muted/60 p-3">
-                <p className="text-xs text-muted-foreground">Tenant revenue</p>
-                <p className="font-display text-lg font-semibold">GHS {detail?.revenue.toLocaleString()}</p>
-              </div>
-              <div className="rounded-xl bg-muted/60 p-3">
-                <p className="text-xs text-muted-foreground">Active features</p>
-                <p className="font-display text-lg font-semibold">{detail?.flags.filter((flag) => flag.enabled).length}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-xl border p-3">
-                <p className="text-xs text-muted-foreground">Website readiness</p>
-                <p className="font-medium">{detail?.readiness.website ? "Published" : "Draft"}</p>
-              </div>
-              <div className="rounded-xl border p-3">
-                <p className="text-xs text-muted-foreground">Domain</p>
-                <p className="font-medium">{detail?.readiness.domain ? "Verified" : "Pending"}</p>
-              </div>
-              <div className="rounded-xl border p-3">
-                <p className="text-xs text-muted-foreground">Brand</p>
-                <p className="font-medium">{detail?.readiness.brand ? "Configured" : "Missing"}</p>
-              </div>
-              <div className="rounded-xl border p-3">
-                <p className="text-xs text-muted-foreground">Payments</p>
-                <p className="font-medium">{detail?.readiness.payments ? "Live" : "Needs setup"}</p>
-              </div>
+              <Link to="/platform/features" className="text-sm font-medium text-secondary transition-colors hover:text-secondary/80">
+                Open flags
+              </Link>
             </div>
           </div>
-
-          <div className="rounded-2xl border bg-card p-5">
-            <h2 className="font-display text-lg font-semibold">Hostel footprint</h2>
-            <div className="mt-3 space-y-3">
-              {detail?.hostels.length ? (
-                detail.hostels.map((hostel) => (
-                  <div key={hostel.id} className="rounded-xl border p-3">
-                    <p className="font-medium">{hostel.name}</p>
-                    <p className="text-sm text-muted-foreground">{hostel.location}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No hostels added yet.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+        </SurfacePanel>
+      </Grid>
     </div>
   );
 }

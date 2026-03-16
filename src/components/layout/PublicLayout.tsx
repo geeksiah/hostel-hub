@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { Building2, LogOut, Menu, UserCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
+import { Container } from "@/components/shared/Container";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
 import { cn } from "@/lib/utils";
@@ -28,18 +29,19 @@ export function PublicLayout() {
   const appLinks = currentUser?.role === "group_organizer" ? getGroupLinks(browsePath) : currentUser?.role === "resident" ? getResidentLinks(browsePath) : [];
   const pageLinks = publicSite?.pageManifest.filter((item) => item.visibleInNav && item.kind !== "properties") ?? [];
   const homeHref = publicSite ? buildPublicPath("/") : "/";
+  const loginHref = buildPublicPath("/login");
   const logoText = activeTheme?.logoText ?? publicSite?.name ?? "HostelHub";
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
-        <div className="container flex h-14 items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/88 backdrop-blur-xl">
+        <Container className="flex min-h-[76px] items-center justify-between py-2">
           <Link to={homeHref} className="flex items-center gap-2 font-display text-lg font-bold">
             <Building2 className="h-5 w-5 text-secondary" />
             {logoText}
           </Link>
 
-          <div className="hidden items-center gap-3 sm:flex">
+          <div className="hidden items-center gap-6 sm:flex">
             {publicSite ? (
               <>
                 {pageLinks.map((page) => (
@@ -53,7 +55,7 @@ export function PublicLayout() {
                     {page.navLabel}
                   </NavLink>
                 ))}
-                <Link to={browsePath} className="text-sm font-medium text-muted-foreground hover:text-foreground">
+                <Link to={browsePath} className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
                   {publicSite.type === "hostel_microsite" ? "Rooms" : "Properties"}
                 </Link>
               </>
@@ -67,36 +69,33 @@ export function PublicLayout() {
                 <Button variant="ghost" size="sm" onClick={() => logout(buildPublicPath("/"))}>Sign out</Button>
               </>
             ) : (
-              <>
-                <Link to="/login"><Button variant="outline" size="sm">Resident login</Button></Link>
-                <Link to="/register"><Button variant="emerald" size="sm">Sign up</Button></Link>
-              </>
+              <Link to={loginHref}><Button variant="outline" size="sm">Resident portal</Button></Link>
             )}
           </div>
 
           <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => setMenuOpen((open) => !open)}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-        </div>
+        </Container>
 
         {menuOpen && (
-          <div className="border-t bg-card p-4 sm:hidden">
-            <div className="space-y-2">
+          <div className="border-t border-border/70 bg-card p-4 sm:hidden">
+            <Container className="space-y-2 px-0">
               {publicSite ? (
                 <>
                   {pageLinks.map((page) => (
-                    <Link key={page.id} to={buildPublicPath(page.slug ? `/${page.slug}` : "/")} className="block py-2 text-sm font-medium" onClick={() => setMenuOpen(false)}>
+                    <Link key={page.id} to={buildPublicPath(page.slug ? `/${page.slug}` : "/")} className="block rounded-xl px-3 py-2.5 text-sm font-medium" onClick={() => setMenuOpen(false)}>
                       {page.navLabel}
                     </Link>
                   ))}
-                  <Link to={browsePath} className="block py-2 text-sm font-medium" onClick={() => setMenuOpen(false)}>
+                  <Link to={browsePath} className="block rounded-xl px-3 py-2.5 text-sm font-medium" onClick={() => setMenuOpen(false)}>
                     {publicSite.type === "hostel_microsite" ? "Rooms" : "Properties"}
                   </Link>
                 </>
               ) : null}
               {currentUser ? (
                 <>
-                  <div className="flex items-center gap-2 rounded-lg border p-3">
+                  <div className="surface-card flex items-center gap-3 p-4">
                     <UserCircle className="h-5 w-5 text-muted-foreground" />
                     <div className="text-sm">
                       <p className="font-medium">{currentUser.name}</p>
@@ -117,24 +116,21 @@ export function PublicLayout() {
                   </Button>
                 </>
               ) : (
-                <>
-                  <Link to="/login" onClick={() => setMenuOpen(false)}><Button variant="outline" className="w-full">Resident login</Button></Link>
-                  <Link to="/register" onClick={() => setMenuOpen(false)}><Button variant="emerald" className="w-full">Sign up</Button></Link>
-                </>
+                <Link to={loginHref} onClick={() => setMenuOpen(false)}><Button variant="outline" className="w-full">Resident portal</Button></Link>
               )}
-            </div>
+            </Container>
           </div>
         )}
       </header>
 
-      <main className="min-h-[calc(100vh-8rem)] pb-20 md:pb-0">
+      <main className="min-h-[calc(100vh-8rem)] pb-24 md:pb-0">
         <Outlet />
       </main>
 
-      <footer className="hidden border-t bg-card py-8 md:block">
-        <div className="container text-center text-sm text-muted-foreground">
+      <footer className="hidden border-t border-border/70 bg-card/80 py-8 md:block">
+        <Container className="text-center text-sm text-muted-foreground">
           {publicSite ? `${logoText} resident portal` : ""}
-        </div>
+        </Container>
       </footer>
 
       <MobileBottomNav />

@@ -14,6 +14,14 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
+function mergeById<T extends { id: string }>(seedItems: T[], persistedItems: T[] | undefined) {
+  const map = new Map(seedItems.map((item) => [item.id, clone(item)]));
+  (persistedItems ?? []).forEach((item) => {
+    map.set(item.id, clone(item));
+  });
+  return Array.from(map.values());
+}
+
 function syncRoomMetrics(database: AppDatabase, roomId: string) {
   const room = database.rooms.find((item) => item.id === roomId);
   if (!room) return;
@@ -71,8 +79,8 @@ export function normalizeDatabase(database: AppDatabase): AppDatabase {
     notificationDispatches: database.notificationDispatches ?? seed.notificationDispatches,
     hostels: database.hostels ?? seed.hostels,
     blocks: database.blocks ?? seed.blocks,
-    rooms: database.rooms ?? seed.rooms,
-    beds: database.beds ?? seed.beds,
+    rooms: mergeById(seed.rooms, database.rooms),
+    beds: mergeById(seed.beds, database.beds),
     periods: database.periods ?? seed.periods,
     bookings: database.bookings ?? seed.bookings,
     groupBookings: database.groupBookings ?? seed.groupBookings,

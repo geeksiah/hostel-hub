@@ -16,59 +16,55 @@
     --font-display: 'Plus Jakarta Sans', sans-serif;
     --font-body: 'Inter', sans-serif;
 
-    /* Deep Navy */
-    --background: 210 20% 98%;
-    --foreground: 215 28% 17%;
+    --background: 210 16% 97%;
+    --foreground: 222 26% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 28% 17%;
+    --card-foreground: 222 26% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 17%;
+    --popover-foreground: 222 26% 14%;
 
-    /* Deep Navy Primary */
-    --primary: 222 60% 11%;
+    --primary: 222 24% 16%;
     --primary-foreground: 210 40% 98%;
 
-    /* Emerald */
-    --secondary: 160 84% 39%;
+    --secondary: 151 56% 42%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 18% 95%;
+    --muted-foreground: 220 11% 46%;
 
-    --accent: 38 92% 50%;
-    --accent-foreground: 222 60% 11%;
+    --accent: 210 22% 94%;
+    --accent-foreground: 222 26% 14%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 160 84% 39%;
+    --border: 220 18% 89%;
+    --input: 220 18% 89%;
+    --ring: 151 56% 42%;
 
     --radius: 0.625rem;
 
-    /* Custom tokens */
-    --emerald: 160 84% 39%;
-    --emerald-light: 160 84% 95%;
-    --amber: 38 92% 50%;
-    --amber-light: 38 92% 94%;
-    --navy: 222 60% 11%;
-    --navy-light: 222 40% 20%;
-    --slate-bg: 210 20% 98%;
-    --success: 160 84% 39%;
-    --warning: 38 92% 50%;
-    --info: 213 94% 56%;
+    --emerald: 151 56% 42%;
+    --emerald-light: 148 45% 95%;
+    --amber: 36 91% 55%;
+    --amber-light: 41 100% 96%;
+    --navy: 222 24% 16%;
+    --navy-light: 222 18% 24%;
+    --slate-bg: 210 16% 97%;
+    --success: 151 56% 42%;
+    --warning: 36 91% 55%;
+    --info: 213 78% 53%;
 
-    --sidebar-background: 222 60% 11%;
+    --sidebar-background: 220 23% 14%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary: 151 56% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 40% 20%;
+    --sidebar-accent: 220 18% 20%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 222 40% 18%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-border: 220 18% 22%;
+    --sidebar-ring: 151 56% 42%;
   }
 }
 
@@ -96,9 +92,17 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    font-feature-settings: "cv11", "ss01", "ss03";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+  }
+  ::selection {
+    background: hsl(var(--secondary) / 0.18);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -108,5 +112,26 @@
   }
   .font-body {
     font-family: var(--font-body);
+  }
+  .app-container {
+    @apply mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8;
+  }
+  .surface-card {
+    @apply rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_rgba(16,24,40,0.03),0_8px_24px_rgba(16,24,40,0.04)];
+  }
+  .surface-card-muted {
+    @apply rounded-2xl border border-border/70 bg-muted/40 shadow-[0_1px_2px_rgba(16,24,40,0.02)];
+  }
+  .hero-surface {
+    @apply rounded-[24px] border border-white/10 shadow-[0_12px_40px_rgba(15,23,42,0.16)];
+  }
+  .page-title {
+    @apply font-display text-[2rem] font-semibold tracking-tight text-foreground;
+  }
+  .section-title {
+    @apply font-display text-[1.25rem] font-semibold tracking-tight text-foreground;
+  }
+  .meta-text {
+    @apply text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground;
   }
 }

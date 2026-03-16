@@ -43,7 +43,6 @@ const capabilityByAdminType: Record<AdminAccountType, AdminCapability[]> = {
     "tickets",
     "checkin",
     "waiting_list",
-    "periods",
     "notifications",
     "account",
   ],

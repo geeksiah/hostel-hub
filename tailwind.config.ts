@@ -9,7 +9,7 @@ export default {
       center: true,
       padding: "1rem",
       screens: {
-        "2xl": "1400px",
+        "2xl": "1280px",
       },
     },
     extend: {
@@ -78,6 +78,14 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        surface: "0 1px 2px rgba(16,24,40,0.03), 0 10px 30px rgba(16,24,40,0.05)",
+        elevated: "0 12px 36px rgba(16,24,40,0.10)",
+        inset: "inset 0 1px 0 rgba(255,255,255,0.45)",
+      },
+      maxWidth: {
+        app: "1280px",
       },
       keyframes: {
         "accordion-down": {

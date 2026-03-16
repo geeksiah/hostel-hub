@@ -3,6 +3,7 @@ import { Building2, ChevronDown, LogOut, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
+import { Container } from "@/components/shared/Container";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
 import { isAppRouteActive } from "@/lib/navigation";
@@ -59,10 +60,10 @@ export function ResidentLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
-        <div className="container flex min-h-16 items-center justify-between gap-4 py-3">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+        <Container className="flex min-h-[72px] items-center justify-between gap-4 py-3">
           <div className="flex items-center gap-4 md:gap-6">
-            <Link to={homeRoute} className="inline-flex items-center gap-2 font-display text-lg font-bold">
+            <Link to={homeRoute} className="inline-flex items-center gap-2 font-display text-lg font-semibold tracking-tight">
               <Building2 className="h-5 w-5 text-secondary" />
               {activeTheme?.logoText ?? "HostelHub"}
             </Link>
@@ -73,8 +74,8 @@ export function ResidentLayout() {
                   to={link.path}
                   className={
                     cn(
-                      "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                      isAppRouteActive(link.path, location.pathname) ? "bg-emerald-light text-emerald" : "text-muted-foreground hover:text-foreground",
+                      "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                      isAppRouteActive(link.path, location.pathname) ? "bg-secondary/10 text-secondary" : "text-muted-foreground hover:text-foreground",
                     )
                   }
                 >
@@ -87,7 +88,7 @@ export function ResidentLayout() {
           {currentUser ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2 rounded-full px-4">
                   <UserCircle className="h-4 w-4" />
                   <span className="hidden sm:inline">{currentUser.name}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -112,10 +113,10 @@ export function ResidentLayout() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
-        </div>
+        </Container>
       </header>
 
-      <main className="pb-20 md:pb-8">
+      <main className="pb-24 md:pb-10">
         <Outlet />
       </main>
 
