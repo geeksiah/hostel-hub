@@ -8,6 +8,7 @@ import { SurfacePanel } from "@/components/shared/SurfacePanel";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
+import { formatCurrency } from "@/lib/currency";
 import { getPlatformWorkspace } from "@/modules/platform/selectors";
 
 function InfoTile({ label, value }: { label: string; value: string }) {
@@ -91,7 +92,7 @@ export default function PlatformDashboard() {
         <MetricCard title="Tenants" value={metrics.totalTenants} icon={Building2} variant="navy" />
         <MetricCard title="Active" value={metrics.activeTenants} icon={Shield} variant="emerald" />
         <MetricCard title="Residents" value={metrics.totalResidents} icon={Users} />
-        <MetricCard title="Revenue" value={`GHS ${metrics.totalRevenue.toLocaleString()}`} icon={TrendingUp} />
+        <MetricCard title="Revenue" value={formatCurrency(metrics.totalRevenue, database.marketConfig.currency)} icon={TrendingUp} />
       </Grid>
 
       <Grid className="xl:grid-cols-[1.02fr_0.98fr]">
@@ -119,7 +120,7 @@ export default function PlatformDashboard() {
             <div className="rounded-[18px] bg-muted/35 px-4 py-4">
               <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Revenue</p>
               <p className="mt-2 font-display text-[1.75rem] font-semibold tracking-tight text-foreground">
-                GHS {detail?.revenue.toLocaleString()}
+                {formatCurrency(detail?.revenue ?? 0, detail?.tenant.currency ?? database.marketConfig.currency)}
               </p>
             </div>
             <div className="rounded-[18px] bg-muted/35 px-4 py-4">

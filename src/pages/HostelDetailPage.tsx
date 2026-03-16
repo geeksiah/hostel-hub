@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Container } from "@/components/shared/Container";
 import { Grid } from "@/components/shared/Grid";
+import { SelectField } from "@/components/shared/SelectField";
+import { RevealTransition } from "@/components/shared/motion";
 import { Section } from "@/components/shared/Section";
 import { SurfacePanel } from "@/components/shared/SurfacePanel";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
@@ -17,12 +18,7 @@ import { getBrowsePath, getPropertyPath, getRoomPath, shouldUseAccountShell } fr
 import { resolveRoomGallery } from "@/lib/media";
 import { getHostelView } from "@/modules/catalog/selectors";
 import { getSiteHostels } from "@/modules/site/selectors";
-
-function resolveRoomPrice(periodType: "semester" | "year" | "vacation" | undefined, semester: number, year: number, nightly: number) {
-  if (periodType === "year") return year;
-  if (periodType === "vacation") return nightly * 45;
-  return semester;
-}
+import { getRoomPriceForPeriod, roomHasActiveRateForPeriod } from "@/services/store";
 
 function formatRoomType(value: string) {
   return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
@@ -37,7 +33,15 @@ export default function HostelDetailPage() {
   const [roomType, setRoomType] = useState<"all" | "single" | "double" | "triple" | "quad">("all");
   const [selectedPeriodId, setSelectedPeriodId] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 0]);
+  const [priceDraft, setPriceDraft] = useState<[number, number]>([0, 0]);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const roomTypeOptions = [
+    { value: "all", label: "All room types" },
+    { value: "single", label: "Single" },
+    { value: "double", label: "Double" },
+    { value: "triple", label: "Triple" },
+    { value: "quad", label: "Quad" },
+  ];
 
   const { hostel, rooms, periods, activePeriod } = useMemo(
     () => (database ? getHostelView(database, hostelId) : { hostel: undefined, rooms: [], periods: [], activePeriod: undefined }),
@@ -53,7 +57,9 @@ export default function HostelDetailPage() {
   const propertyPath = getPropertyPath(currentUser, hostelId, buildPublicPath);
   const selectedPeriod = periods.find((period) => period.id === selectedPeriodId) ?? activePeriod ?? periods[0];
 
-  const roomPrices = rooms.map((room) => resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight));
+  const roomPrices = rooms
+    .filter((room) => !selectedPeriod || roomHasActiveRateForPeriod(database, room.id, selectedPeriod.id))
+    .map((room) => getRoomPriceForPeriod(database, room, selectedPeriod));
   const minPrice = roomPrices.length ? Math.min(...roomPrices) : 0;
   const maxPrice = roomPrices.length ? Math.max(...roomPrices) : 10000;
 
@@ -64,29 +70,73 @@ export default function HostelDetailPage() {
   }, [selectedPeriod?.id, selectedPeriodId]);
 
   useEffect(() => {
-    setPriceRange((current) => {
-      if (current[0] === 0 && current[1] === 0) return [minPrice, maxPrice];
-      return current;
-    });
+    const nextRange: [number, number] = [minPrice, maxPrice];
+    setPriceRange((current) => (current[0] === 0 && current[1] === 0 ? nextRange : current));
+    setPriceDraft((current) => (current[0] === 0 && current[1] === 0 ? nextRange : current));
   }, [maxPrice, minPrice]);
+
+  useEffect(() => {
+    setPriceDraft(priceRange);
+  }, [priceRange]);
+
+  const filterPanel = (
+    <SurfacePanel className="p-5 sm:p-6">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr] xl:items-end">
+        <SelectField
+          label="Room type"
+          value={roomType}
+          onValueChange={(value) => setRoomType(value as typeof roomType)}
+          options={roomTypeOptions}
+          placeholder="All room types"
+        />
+
+        <SelectField
+          label="Stay period"
+          value={selectedPeriod?.id ?? ""}
+          onValueChange={setSelectedPeriodId}
+          options={periods.map((period) => ({ value: period.id, label: period.name }))}
+          placeholder="Select stay period"
+        />
+
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Price range</p>
+            <p className="text-sm font-medium text-foreground">
+              {formatCurrency(priceDraft[0], currency)} - {formatCurrency(priceDraft[1], currency)}
+            </p>
+          </div>
+          <Slider
+            min={minPrice}
+            max={maxPrice}
+            step={50}
+            value={priceDraft}
+            onValueChange={(value) => setPriceDraft([value[0], value[1]])}
+            onValueCommit={(value) => setPriceRange([value[0], value[1]])}
+            className="py-2"
+          />
+        </div>
+      </div>
+    </SurfacePanel>
+  );
 
   const filteredRooms = useMemo(
     () =>
       [...rooms]
         .filter((room) => {
-          const price = resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight);
+          const price = getRoomPriceForPeriod(database, room, selectedPeriod);
           const matchesType = roomType === "all" || room.type === roomType;
           const matchesPrice = price >= priceRange[0] && price <= priceRange[1];
-          return matchesType && matchesPrice;
+          const matchesPeriod = selectedPeriod ? roomHasActiveRateForPeriod(database, room.id, selectedPeriod.id) : true;
+          return matchesType && matchesPrice && matchesPeriod;
         })
         .sort((left, right) => {
           const leftAvailable = database?.beds.filter((bed) => bed.roomId === left.id && bed.status === "available").length ?? 0;
           const rightAvailable = database?.beds.filter((bed) => bed.roomId === right.id && bed.status === "available").length ?? 0;
           if (rightAvailable !== leftAvailable) return rightAvailable - leftAvailable;
-          return resolveRoomPrice(selectedPeriod?.type, left.pricePerSemester, left.pricePerYear, left.pricePerNight)
-            - resolveRoomPrice(selectedPeriod?.type, right.pricePerSemester, right.pricePerYear, right.pricePerNight);
+          return getRoomPriceForPeriod(database, left, selectedPeriod)
+            - getRoomPriceForPeriod(database, right, selectedPeriod);
         }),
-    [database?.beds, priceRange, roomType, rooms, selectedPeriod?.type],
+    [database, priceRange, roomType, rooms, selectedPeriod],
   );
 
   if (!database) return <div className="container py-10">Loading hostel...</div>;
@@ -104,19 +154,19 @@ export default function HostelDetailPage() {
   }
 
   return (
-    <div className="pb-16 pt-4 md:pb-20 md:pt-6">
-      <Container className="space-y-8">
+    <div className="pb-20 pt-5 md:pb-24 md:pt-8">
+      <Container className="space-y-12 md:space-y-14">
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Button variant="outline" className="rounded-full" onClick={() => navigate(browsePath)}>
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-            <div>
+            <div className="space-y-2">
               <h1 className="font-display text-[2.2rem] font-semibold leading-[1.02] tracking-tight text-foreground sm:text-[2.8rem]">
                 {hostel.name}
               </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
                   {hostel.location}
@@ -132,59 +182,11 @@ export default function HostelDetailPage() {
           </Button>
         </div>
 
-        <div className={`${filtersOpen ? "block" : "hidden"} md:block`}>
-          <SurfacePanel className="p-4 sm:p-5">
-            <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr] lg:items-end">
-              <div className="space-y-2.5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Room type</p>
-                <Select value={roomType} onValueChange={(value) => setRoomType(value as typeof roomType)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All room types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All room types</SelectItem>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="double">Double</SelectItem>
-                    <SelectItem value="triple">Triple</SelectItem>
-                    <SelectItem value="quad">Quad</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2.5">
-                <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Stay period</p>
-                <Select value={selectedPeriod?.id ?? ""} onValueChange={setSelectedPeriodId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select stay period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {periods.map((period) => (
-                      <SelectItem key={period.id} value={period.id}>
-                        {period.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Price range</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {formatCurrency(priceRange[0], currency)} - {formatCurrency(priceRange[1], currency)}
-                  </p>
-                </div>
-                <Slider
-                  min={minPrice}
-                  max={maxPrice}
-                  step={50}
-                  value={priceRange}
-                  onValueChange={(value) => setPriceRange([value[0], value[1]])}
-                  className="py-2"
-                />
-              </div>
-            </div>
-          </SurfacePanel>
+        <RevealTransition show={filtersOpen} className="md:hidden">
+          {filterPanel}
+        </RevealTransition>
+        <div className="hidden md:block">
+          {filterPanel}
         </div>
 
         <Section title="Available rooms" description="Choose the room type and stay period that fits best.">
@@ -193,50 +195,29 @@ export default function HostelDetailPage() {
           ) : null}
 
           {filteredRooms.length ? (
-            <Grid className="md:grid-cols-2 xl:grid-cols-3">
+            <Grid className="gap-7 md:grid-cols-2 xl:grid-cols-3">
               {filteredRooms.map((room) => {
                 const availableBeds = database.beds.filter((bed) => bed.roomId === room.id && bed.status === "available").length;
-                const displayedPrice = resolveRoomPrice(selectedPeriod?.type, room.pricePerSemester, room.pricePerYear, room.pricePerNight);
+                const displayedPrice = getRoomPriceForPeriod(database, room, selectedPeriod);
+                const roomImage = resolveRoomGallery(room.images)[0] ?? resolveRoomGallery(hostel.coverImages)[0] ?? hostel.image;
+
                 return (
                   <article key={room.id} className="surface-card flex h-full flex-col overflow-hidden">
-                    <button
-                      type="button"
-                      className="block overflow-hidden rounded-[16px]"
-                      onClick={() => navigate(getRoomPath(currentUser, room.id, buildPublicPath))}
-                    >
-                      <img
-                        src={resolveRoomGallery(room.images)[0]}
-                        alt={room.name}
-                        className="h-60 w-full object-cover transition duration-300 hover:scale-[1.02]"
-                      />
+                    <button type="button" className="block overflow-hidden" onClick={() => navigate(getRoomPath(currentUser, room.id, buildPublicPath))}>
+                      <img src={roomImage} alt={room.name} className="h-60 w-full object-cover transition duration-300 hover:scale-[1.02]" />
                     </button>
 
-                    <div className="flex flex-1 flex-col gap-5 p-6 pt-5">
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h2 className="text-lg font-semibold tracking-tight text-foreground capitalize">
-                              {formatRoomType(room.type)} room
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              Room {room.name} · Floor {room.floor} · {room.capacity} beds
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">From</p>
-                            <p className="mt-1 text-lg font-semibold tracking-tight text-foreground">
-                              {formatCurrency(displayedPrice, currency)}
-                            </p>
-                          </div>
+                    <div className="flex flex-1 flex-col gap-6 p-6 sm:p-7">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <h2 className="text-lg font-semibold tracking-tight text-foreground capitalize">{formatRoomType(room.type)} room</h2>
+                          <p className="text-sm text-muted-foreground">Room {room.name} / Floor {room.floor} / {room.capacity} beds</p>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="secondary">{availableBeds > 0 ? `${availableBeds} beds open` : "Waitlist open"}</Badge>
                           <Badge variant="outline">{selectedPeriod?.name ?? "Current stay"}</Badge>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {room.amenities.slice(0, 3).map((amenity) => (
+                          {room.amenities.slice(0, 2).map((amenity) => (
                             <Badge key={amenity} variant="outline">
                               {amenity}
                             </Badge>
@@ -244,13 +225,15 @@ export default function HostelDetailPage() {
                         </div>
                       </div>
 
-                      <Button
-                        variant="outline"
-                        className="mt-auto w-full"
-                        onClick={() => navigate(getRoomPath(currentUser, room.id, buildPublicPath))}
-                      >
-                        View room
-                      </Button>
+                      <div className="mt-auto flex items-end justify-between gap-4 border-t border-border/70 pt-5">
+                        <div>
+                          <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">From</p>
+                          <p className="mt-2 text-xl font-semibold tracking-tight text-foreground">{formatCurrency(displayedPrice, currency)}</p>
+                        </div>
+                        <Button variant="outline" onClick={() => navigate(getRoomPath(currentUser, room.id, buildPublicPath))}>
+                          View room
+                        </Button>
+                      </div>
                     </div>
                   </article>
                 );

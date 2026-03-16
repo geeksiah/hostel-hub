@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "framer-motion";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ScrollToTop } from "@/components/shared/ScrollToTop";
 import { AppProvider } from "@/contexts/AppContext";
 import { SiteProvider } from "@/contexts/SiteContext";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -48,13 +50,15 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AppProvider>
-        <BrowserRouter>
-          <SiteProvider>
-            <Routes>
+    <MotionConfig reducedMotion="user">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AppProvider>
+          <BrowserRouter>
+            <SiteProvider>
+              <ScrollToTop />
+              <Routes>
               {/* Auth */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -119,11 +123,12 @@ const App = () => (
                 <Route path="/:siteSlug/rooms/:roomId" element={<RoomDetailPage />} />
                 <Route path="*" element={<ResolvedPublicSitePage />} />
               </Route>
-            </Routes>
-          </SiteProvider>
-        </BrowserRouter>
-      </AppProvider>
-    </TooltipProvider>
+              </Routes>
+            </SiteProvider>
+          </BrowserRouter>
+        </AppProvider>
+      </TooltipProvider>
+    </MotionConfig>
   </QueryClientProvider>
 );
 

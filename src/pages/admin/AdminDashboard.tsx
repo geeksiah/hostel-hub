@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   BedDouble,
   CalendarDays,
@@ -13,11 +12,9 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SurfacePanel } from "@/components/shared/SurfacePanel";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
 import { formatCurrency, getHostelCurrency } from "@/lib/currency";
-import { cn } from "@/lib/utils";
-import { getAdminAccountType, hasAdminCapability } from "@/modules/admin/permissions";
+import { getAdminAccountType } from "@/modules/admin/permissions";
 import { getTenantAdminWorkspace } from "@/modules/tenantAdmin/selectors";
 
 function InfoTile({ label, value }: { label: string; value: string }) {
@@ -26,24 +23,6 @@ function InfoTile({ label, value }: { label: string; value: string }) {
       <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>
-  );
-}
-
-function ActionTile({
-  title,
-  href,
-  variant = "outline",
-}: {
-  title: string;
-  href: string;
-  variant?: "outline" | "emerald";
-}) {
-  return (
-    <Link to={href} className="block">
-      <Button variant={variant} className="w-full justify-center">
-        {title}
-      </Button>
-    </Link>
   );
 }
 
@@ -180,28 +159,6 @@ export default function AdminDashboard() {
             ]
           : [];
 
-  const quickLinks =
-    adminType === "security"
-      ? [{ label: "Open scanner", href: "/admin/checkin", variant: "emerald" as const }]
-      : adminType === "accountant"
-        ? [
-            { label: "Payments", href: "/admin/payments", variant: "emerald" as const },
-            ...(hasAdminCapability(currentUser, "reports")
-              ? [{ label: "Reports", href: "/admin/reports", variant: "outline" as const }]
-              : []),
-          ]
-        : [
-            ...(hasAdminCapability(currentUser, "bookings")
-              ? [{ label: "Bookings", href: "/admin/bookings", variant: "emerald" as const }]
-              : []),
-            ...(hasAdminCapability(currentUser, "checkin")
-              ? [{ label: "Check-in", href: "/admin/checkin", variant: "outline" as const }]
-              : []),
-            ...(hasAdminCapability(currentUser, "tickets")
-              ? [{ label: "Tickets", href: "/admin/tickets", variant: "outline" as const }]
-              : []),
-          ];
-
   const overviewTiles = [
     { label: "Assignment", value: workspace.hostel?.name ?? "Current hostel" },
     { label: "Role", value: adminType.replace(/_/g, " ") },
@@ -220,20 +177,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={pageTitle}
-        description={workspace.hostel?.name ?? "Overview"}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            {quickLinks.map((link) => (
-              <ActionTile key={link.href} title={link.label} href={link.href} variant={link.variant} />
-            ))}
-          </div>
-        }
-      />
+      <PageHeader title={pageTitle} description={workspace.hostel?.name ?? "Overview"} />
 
       <SurfacePanel className="p-6 sm:p-7">
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
+        <div className="space-y-5">
           <div className="space-y-5">
             <div className="space-y-3">
               <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Workspace</p>
@@ -248,12 +195,6 @@ export default function AdminDashboard() {
                 <InfoTile key={tile.label} label={tile.label} value={tile.value} />
               ))}
             </div>
-          </div>
-
-          <div className={cn("grid gap-3", quickLinks.length > 1 ? "sm:grid-cols-2" : "")}>
-            {quickLinks.map((link) => (
-              <ActionTile key={link.href} title={link.label} href={link.href} variant={link.variant} />
-            ))}
           </div>
         </div>
       </SurfacePanel>

@@ -283,18 +283,20 @@ export default function PaymentPage() {
               <div className="grid gap-2">
                 <Button
                   variant="emerald"
+                  className="w-full"
                   onClick={() => navigate(currentUser?.role === "group_organizer" ? "/group-booking" : "/resident")}
                 >
                   Return to dashboard
                 </Button>
                 {!currentUser ? (
-                  <Button variant="outline" onClick={() => navigate(buildPublicPath("/properties"))}>
+                  <Button variant="outline" className="w-full" onClick={() => navigate(buildPublicPath("/properties"))}>
                     Back to site
                   </Button>
                 ) : null}
                 {createdPaymentId && (
                   <Button
                     variant="outline"
+                    className="w-full"
                     onClick={async () => {
                       const result = await PaymentService.downloadReceiptPdf(createdPaymentId);
                       triggerDownload(result.data.filename, result.data.content, result.data.mimeType);

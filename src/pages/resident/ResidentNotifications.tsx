@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ export default function ResidentNotifications() {
   const [selectedId, setSelectedId] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(emptyNotificationForm);
+  const detailRef = useRef<HTMLDivElement | null>(null);
 
   const title =
     currentUser?.role === "tenant_admin"
@@ -104,6 +105,17 @@ export default function ResidentNotifications() {
     setSelectedId(nextId);
   }, [notificationId, notifications, selectedId]);
 
+  useEffect(() => {
+    if (!selectedNotification) return;
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 1279px)").matches) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedNotification?.id]);
+
   if (!database || !currentUser) return <div className="container py-10">Loading notifications...</div>;
 
   const recipientOptions = database.users.filter((user) => tenantUserIds.has(user.id));
@@ -131,17 +143,18 @@ export default function ResidentNotifications() {
   };
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 py-6">
+    <div className="container mx-auto max-w-6xl space-y-8 py-6 pb-28 md:space-y-10 md:pb-10">
       <PageHeader
         title={title}
         description={description}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             {currentUser.role === "tenant_admin" ? (
               <>
                 <Button
                   variant={scope === "mine" ? "emerald" : "outline"}
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => setScope("mine")}
                 >
                   My inbox
@@ -149,11 +162,12 @@ export default function ResidentNotifications() {
                 <Button
                   variant={scope === "tenant" ? "emerald" : "outline"}
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => setScope("tenant")}
                 >
                   Tenant stream
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => openComposer()}>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => openComposer()}>
                   <Plus className="h-4 w-4" />
                   New notification
                 </Button>
@@ -162,6 +176,7 @@ export default function ResidentNotifications() {
             <Button
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               onClick={async () => {
                 await NotificationService.markAllAsRead(currentUser.id);
                 await refreshData();
@@ -174,13 +189,13 @@ export default function ResidentNotifications() {
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
         <div className="overflow-hidden rounded-2xl border bg-card">
           <div className="border-b px-4 py-3">
             <p className="font-medium">{scope === "tenant" ? "Tenant notifications" : "Inbox"}</p>
             <p className="text-xs text-muted-foreground">{notifications.length} notification records</p>
           </div>
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="max-h-[52vh] overflow-y-auto md:max-h-[70vh]">
             {notifications.length ? (
               notifications.map((notification) => (
                 <button
@@ -219,7 +234,7 @@ export default function ResidentNotifications() {
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-card p-5">
+        <div ref={detailRef} className="rounded-2xl border bg-card p-5 sm:p-6">
           {selectedNotification ? (
             <div className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -228,16 +243,17 @@ export default function ResidentNotifications() {
                   <h2 className="font-display text-2xl font-semibold">{selectedNotification.title}</h2>
                   <p className="text-sm text-muted-foreground">{selectedNotification.message}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                   {currentUser.role === "tenant_admin" && scope === "tenant" ? (
                     <>
-                      <Button variant="outline" size="sm" onClick={() => openComposer(selectedNotification)}>
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => openComposer(selectedNotification)}>
                         <Pencil className="h-4 w-4" />
                         Edit
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
+                        className="w-full sm:w-auto"
                         onClick={async () => {
                           await NotificationService.deleteNotification(selectedNotification.id);
                           await refreshData();
@@ -253,6 +269,7 @@ export default function ResidentNotifications() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="w-full sm:w-auto"
                     onClick={async () => {
                       if (selectedNotification.read) {
                         await NotificationService.markAsUnread(selectedNotification.id);
@@ -375,10 +392,11 @@ export default function ResidentNotifications() {
             <Input value={form.targetId} onChange={(event) => setForm({ ...form, targetId: event.target.value })} />
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setFormOpen(false)}>Cancel</Button>
           <Button
             variant="emerald"
+            className="w-full sm:w-auto"
             onClick={async () => {
               if (!form.userId || !form.title.trim() || !form.message.trim()) return;
               const recipient = database.users.find((user) => user.id === form.userId);

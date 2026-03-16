@@ -4,6 +4,7 @@ import { Building2, LogOut, Menu, UserCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
 import { Container } from "@/components/shared/Container";
+import { PageTransition, RevealTransition } from "@/components/shared/motion";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export function PublicLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/88 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background">
         <Container className="flex min-h-[76px] items-center justify-between py-2">
           <Link to={homeHref} className="flex items-center gap-2 font-display text-lg font-bold">
             <Building2 className="h-5 w-5 text-secondary" />
@@ -78,8 +79,8 @@ export function PublicLayout() {
           </Button>
         </Container>
 
-        {menuOpen && (
-          <div className="border-t border-border/70 bg-card p-4 sm:hidden">
+        <RevealTransition show={menuOpen} className="sm:hidden">
+          <div className="border-t border-border/70 bg-card p-4">
             <Container className="space-y-2 px-0">
               {publicSite ? (
                 <>
@@ -120,16 +121,42 @@ export function PublicLayout() {
               )}
             </Container>
           </div>
-        )}
+        </RevealTransition>
       </header>
 
       <main className="min-h-[calc(100vh-8rem)] pb-24 md:pb-0">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
 
-      <footer className="hidden border-t border-border/70 bg-card/80 py-8 md:block">
-        <Container className="text-center text-sm text-muted-foreground">
-          {publicSite ? `${logoText} resident portal` : ""}
+      <footer className="border-t border-border/70 bg-card py-8 md:py-10">
+        <Container className="flex flex-col gap-6 pb-20 text-sm text-muted-foreground md:flex-row md:items-end md:justify-between md:pb-0">
+          <div className="space-y-2">
+            <p className="font-display text-base font-semibold tracking-tight text-foreground">{logoText}</p>
+            <p>{publicSite ? `${logoText} resident portal` : "Resident portal"}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {publicSite ? (
+              <>
+                <Link to={homeHref} className="transition-colors hover:text-foreground">Home</Link>
+                <Link to={browsePath} className="transition-colors hover:text-foreground">
+                  {publicSite.type === "hostel_microsite" ? "Rooms" : "Properties"}
+                </Link>
+                {pageLinks.slice(0, 2).map((page) => (
+                  <Link
+                    key={page.id}
+                    to={buildPublicPath(page.slug ? `/${page.slug}` : "/")}
+                    className="transition-colors hover:text-foreground"
+                  >
+                    {page.navLabel}
+                  </Link>
+                ))}
+                <Link to={loginHref} className="transition-colors hover:text-foreground">Resident portal</Link>
+              </>
+            ) : null}
+          </div>
         </Container>
       </footer>
 

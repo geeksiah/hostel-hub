@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CalendarPlus, CheckCircle2, Pencil, Users } from "lucide-react";
+import { Bell, CalendarPlus, CheckCircle2, Pencil, RefreshCcw, Users, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ActionMenuSheet } from "@/components/shared/ActionMenuSheet";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApp } from "@/contexts/AppContext";
 import { formatCurrency, getHostelCurrency } from "@/lib/currency";
@@ -32,7 +33,7 @@ const emptyGroupRequest = {
 
 export default function AdminBookings() {
   const { database, session, refreshData } = useApp();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [manualOverlayOpen, setManualOverlayOpen] = useState(false);
   const [allocationOverlayOpen, setAllocationOverlayOpen] = useState(false);
   const [bookingMode, setBookingMode] = useState<"resident" | "group">("resident");
@@ -58,6 +59,10 @@ export default function AdminBookings() {
     () => database?.groupBookings.filter((request) => request.hostelId === session.currentHostelId) ?? [],
     [database, session.currentHostelId],
   );
+  const waitlistEntries = useMemo(
+    () => database?.waitingList.filter((entry) => entry.hostelId === session.currentHostelId) ?? [],
+    [database, session.currentHostelId],
+  );
   const groupOrganizers = useMemo(
     () => database?.users.filter((user) => user.role === "group_organizer") ?? [],
     [database],
@@ -76,6 +81,14 @@ export default function AdminBookings() {
   const selectedGroup = groupRequests.find((request) => request.id === selectedGroupId);
   const highlightedBookingId = searchParams.get("booking");
   const highlightedGroupId = searchParams.get("group");
+  const highlightedWaitlistId = searchParams.get("waitlist");
+  const activeTab = searchParams.get("tab") ?? (highlightedWaitlistId ? "waitlist" : highlightedGroupId ? "group" : "individuals");
+
+  const setActiveTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", value);
+    setSearchParams(next);
+  };
 
   const createManualBooking = async () => {
     if (bookingMode === "resident") {
@@ -120,7 +133,7 @@ export default function AdminBookings() {
     <div className="space-y-6">
       <PageHeader
         title="Bookings"
-        description="Bookings and group requests."
+        description="Individuals, groups, and wait list from one workspace."
         actions={
           <Button variant="emerald" size="sm" onClick={() => setManualOverlayOpen(true)}>
             <CalendarPlus className="h-4 w-4" />
@@ -129,148 +142,261 @@ export default function AdminBookings() {
         }
       />
 
-      <div className="overflow-hidden rounded-2xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 className="font-display text-lg font-semibold">Individual bookings</h2>
-          <p className="text-sm text-muted-foreground">Use row actions instead of crowded inline buttons.</p>
-        </div>
-        <Table>
-          <TableHeader className="bg-muted/60">
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Resident</TableHead>
-              <TableHead>Room</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[72px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bookings.map((booking) => {
-              const resident = residents.find((item) => item.id === booking.residentId);
-              const room = database.rooms.find((item) => item.id === booking.roomId);
-              const period = database.periods.find((item) => item.id === booking.periodId);
-              return (
-                <TableRow key={booking.id} className={highlightedBookingId === booking.id ? "bg-emerald-light/30" : ""}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{resident?.name}</p>
-                      <p className="text-xs text-muted-foreground">{period?.name ?? booking.durationLabel}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>Room {room?.name}</TableCell>
-                  <TableCell>{formatCurrency(booking.amount, currency)}</TableCell>
-                  <TableCell><StatusBadge status={booking.status} type="booking" /></TableCell>
-                  <TableCell className="text-right">
-                    <ActionMenuSheet
-                      title={`Booking ${booking.id}`}
-                      description="Booking actions"
-                      details={
-                        <>
-                          <p><span className="text-muted-foreground">Resident:</span> {resident?.name ?? "-"}</p>
-                          <p><span className="text-muted-foreground">Created:</span> {booking.createdAt.slice(0, 10)}</p>
-                        </>
-                      }
-                      actions={[
-                        {
-                          label: "Mark reserved",
-                          icon: <Pencil className="h-4 w-4" />,
-                          onSelect: async () => {
-                            await BookingService.updateBookingStatus(booking.id, "reserved");
-                            await refreshData();
-                            toast.success("Booking marked reserved.");
-                          },
-                        },
-                        {
-                          label: "Confirm booking",
-                          icon: <CheckCircle2 className="h-4 w-4" />,
-                          onSelect: async () => {
-                            await BookingService.updateBookingStatus(booking.id, "confirmed");
-                            await refreshData();
-                            toast.success("Booking confirmed.");
-                          },
-                        },
-                        {
-                          label: "Cancel booking",
-                          onSelect: async () => {
-                            await BookingService.cancelBooking(booking.id);
-                            await refreshData();
-                            toast.success("Booking cancelled.");
-                          },
-                        },
-                      ]}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+          <TabsTrigger value="individuals">Individuals</TabsTrigger>
+          <TabsTrigger value="group">Group</TabsTrigger>
+          <TabsTrigger value="waitlist">Wait list</TabsTrigger>
+        </TabsList>
 
-      <div className="overflow-hidden rounded-2xl border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 className="font-display text-lg font-semibold">Group requests</h2>
-          <p className="text-sm text-muted-foreground">Allocate beds, keep requests under review, and track total value.</p>
-        </div>
-        <Table>
-          <TableHeader className="bg-muted/60">
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Group</TableHead>
-              <TableHead>Beds</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[72px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {groupRequests.map((request) => (
-              <TableRow key={request.id} className={highlightedGroupId === request.id ? "bg-emerald-light/30" : ""}>
-                <TableCell>
-                  <div>
-                    <p className="font-medium">{request.groupName}</p>
-                    <p className="text-xs text-muted-foreground">{request.contactPhone}</p>
-                  </div>
-                </TableCell>
-                <TableCell>{request.bedsAllocated}/{request.bedsRequired}</TableCell>
-                <TableCell>{formatCurrency(request.amount, currency)}</TableCell>
-                <TableCell>
-                  <StatusBadge
-                    status={request.status}
-                    variant={request.status === "confirmed" ? "success" : request.status === "allocated" ? "info" : "warning"}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <ActionMenuSheet
-                    title={request.groupName}
-                    description="Group booking actions"
-                    details={
-                      <>
-                        <p><span className="text-muted-foreground">Beds required:</span> {request.bedsRequired}</p>
-                        <p><span className="text-muted-foreground">Organizer:</span> {request.organizerId}</p>
-                      </>
-                    }
-                    actions={[
-                      {
-                        label: "Allocate beds",
-                        icon: <Users className="h-4 w-4" />,
-                        onSelect: () => openAllocation(request.id),
-                      },
-                      {
-                        label: "Keep reviewing",
-                        onSelect: async () => {
-                          await BookingService.updateGroupRequest(request.id, { status: "reviewing" });
-                          await refreshData();
-                          toast.success("Request kept under review.");
-                        },
-                      },
-                    ]}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+        <TabsContent value="individuals" className="space-y-4">
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            <div className="border-b px-4 py-3">
+              <h2 className="font-display text-lg font-semibold">Individual bookings</h2>
+              <p className="text-sm text-muted-foreground">Bookings awaiting payment, confirmation, or move-in.</p>
+            </div>
+            <Table>
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Resident</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[72px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bookings.map((booking) => {
+                  const resident = residents.find((item) => item.id === booking.residentId);
+                  const room = database.rooms.find((item) => item.id === booking.roomId);
+                  const period = database.periods.find((item) => item.id === booking.periodId);
+                  return (
+                    <TableRow key={booking.id} className={highlightedBookingId === booking.id ? "bg-emerald-light/30" : ""}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{resident?.name}</p>
+                          <p className="text-xs text-muted-foreground">{period?.name ?? booking.durationLabel}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>Room {room?.name}</TableCell>
+                      <TableCell>{formatCurrency(booking.amount, currency)}</TableCell>
+                      <TableCell><StatusBadge status={booking.status} type="booking" /></TableCell>
+                      <TableCell className="text-right">
+                        <ActionMenuSheet
+                          title={`Booking ${booking.id}`}
+                          description="Booking actions"
+                          details={
+                            <>
+                              <p><span className="text-muted-foreground">Resident:</span> {resident?.name ?? "-"}</p>
+                              <p><span className="text-muted-foreground">Created:</span> {booking.createdAt.slice(0, 10)}</p>
+                            </>
+                          }
+                          actions={[
+                            {
+                              label: "Mark reserved",
+                              icon: <Pencil className="h-4 w-4" />,
+                              onSelect: async () => {
+                                await BookingService.updateBookingStatus(booking.id, "reserved");
+                                await refreshData();
+                                toast.success("Booking marked reserved.");
+                              },
+                            },
+                            {
+                              label: "Confirm booking",
+                              icon: <CheckCircle2 className="h-4 w-4" />,
+                              onSelect: async () => {
+                                await BookingService.updateBookingStatus(booking.id, "confirmed");
+                                await refreshData();
+                                toast.success("Booking confirmed.");
+                              },
+                            },
+                            {
+                              label: "Cancel booking",
+                              onSelect: async () => {
+                                await BookingService.cancelBooking(booking.id);
+                                await refreshData();
+                                toast.success("Booking cancelled.");
+                              },
+                            },
+                          ]}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="group" className="space-y-4">
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            <div className="border-b px-4 py-3">
+              <h2 className="font-display text-lg font-semibold">Group requests</h2>
+              <p className="text-sm text-muted-foreground">Allocate beds, keep requests under review, and track total value.</p>
+            </div>
+            <Table>
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Group</TableHead>
+                  <TableHead>Beds</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[72px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groupRequests.map((request) => (
+                  <TableRow key={request.id} className={highlightedGroupId === request.id ? "bg-emerald-light/30" : ""}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{request.groupName}</p>
+                        <p className="text-xs text-muted-foreground">{request.contactPhone}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{request.bedsAllocated}/{request.bedsRequired}</TableCell>
+                    <TableCell>{formatCurrency(request.amount, currency)}</TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        status={request.status}
+                        variant={request.status === "confirmed" ? "success" : request.status === "allocated" ? "info" : "warning"}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ActionMenuSheet
+                        title={request.groupName}
+                        description="Group booking actions"
+                        details={
+                          <>
+                            <p><span className="text-muted-foreground">Beds required:</span> {request.bedsRequired}</p>
+                            <p><span className="text-muted-foreground">Organizer:</span> {request.organizerId}</p>
+                          </>
+                        }
+                        actions={[
+                          {
+                            label: "Allocate beds",
+                            icon: <Users className="h-4 w-4" />,
+                            onSelect: () => openAllocation(request.id),
+                          },
+                          {
+                            label: "Keep reviewing",
+                            onSelect: async () => {
+                              await BookingService.updateGroupRequest(request.id, { status: "reviewing" });
+                              await refreshData();
+                              toast.success("Request kept under review.");
+                            },
+                          },
+                        ]}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="waitlist" className="space-y-4">
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            <div className="border-b px-4 py-3">
+              <h2 className="font-display text-lg font-semibold">Wait list</h2>
+              <p className="text-sm text-muted-foreground">Approve, reject, notify, or convert entries into bookings.</p>
+            </div>
+            <Table>
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Position</TableHead>
+                  <TableHead>Resident</TableHead>
+                  <TableHead>Room type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[72px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {waitlistEntries.map((entry) => {
+                  const resident = database.users.find((user) => user.id === entry.residentId);
+                  return (
+                    <TableRow key={entry.id} className={highlightedWaitlistId === entry.id ? "bg-emerald-light/30" : ""}>
+                      <TableCell>{entry.position}</TableCell>
+                      <TableCell>{resident?.name}</TableCell>
+                      <TableCell className="capitalize">{entry.roomType}</TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          status={entry.status}
+                          variant={
+                            entry.status === "waiting"
+                              ? "warning"
+                              : entry.status === "converted" || entry.status === "approved"
+                                ? "success"
+                                : entry.status === "rejected"
+                                  ? "error"
+                                  : "info"
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ActionMenuSheet
+                          title={resident?.name ?? "Waiting list entry"}
+                          description="Waiting list actions"
+                          details={
+                            <>
+                              <p><span className="text-muted-foreground">Position:</span> {entry.position}</p>
+                              <p><span className="text-muted-foreground">Period:</span> {entry.periodId}</p>
+                            </>
+                          }
+                          actions={[
+                            {
+                              label: "Notify resident",
+                              icon: <Bell className="h-4 w-4" />,
+                              onSelect: async () => {
+                                await BookingService.updateWaitingListStatus(entry.id, "notified");
+                                await refreshData();
+                                toast.success("Resident notified.");
+                              },
+                            },
+                            {
+                              label: "Approve entry",
+                              icon: <CheckCircle2 className="h-4 w-4" />,
+                              onSelect: async () => {
+                                await BookingService.updateWaitingListStatus(entry.id, "approved");
+                                await refreshData();
+                                toast.success("Entry approved.");
+                              },
+                            },
+                            {
+                              label: "Reject entry",
+                              icon: <XCircle className="h-4 w-4" />,
+                              destructive: true,
+                              onSelect: async () => {
+                                await BookingService.updateWaitingListStatus(entry.id, "rejected");
+                                await refreshData();
+                                toast.success("Entry rejected.");
+                              },
+                            },
+                            {
+                              label: "Convert to booking",
+                              icon: <RefreshCcw className="h-4 w-4" />,
+                              onSelect: async () => {
+                                const result = await BookingService.convertWaitingListEntry(entry.id);
+                                await refreshData();
+                                if (result.data) {
+                                  toast.success("Waiting list entry converted to booking.");
+                                } else {
+                                  toast.error("No matching bed is currently available.");
+                                }
+                              },
+                            },
+                          ]}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <ResponsiveOverlay
         open={manualOverlayOpen}

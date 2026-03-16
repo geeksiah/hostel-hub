@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { FileUploader } from "@/components/shared/FileUploader";
+import { SurfacePanel } from "@/components/shared/SurfacePanel";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -49,13 +50,13 @@ export default function ResidentProfile() {
   };
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-6 py-6">
+    <div className="container mx-auto w-full max-w-5xl overflow-x-clip space-y-8 py-6 pb-28 md:space-y-10 md:pb-10">
       <PageHeader title="Profile" description="Your details and documents." />
 
-      <div className="rounded-2xl border bg-card p-5 md:p-6">
-        <div className="flex flex-col gap-5 border-b pb-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
+      <SurfacePanel>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="min-w-0 flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="relative mx-auto sm:mx-0">
               <Avatar className="h-24 w-24 border shadow-sm">
                 <AvatarImage
                   src={form.passportPhoto ? resolveImageSource(form.passportPhoto) : currentUser.avatar ? resolveImageSource(currentUser.avatar) : undefined}
@@ -112,109 +113,107 @@ export default function ResidentProfile() {
               </DropdownMenu>
             </div>
 
-            <div className="min-w-0">
-              <p className="font-display text-xl font-semibold">{form.name || currentUser.name}</p>
-              <p className="truncate text-sm text-muted-foreground">{form.email || currentUser.email}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Use the camera button to update your photo.</p>
+            <div className="min-w-0 space-y-2 text-center sm:text-left">
+              <p className="font-display text-2xl font-semibold tracking-tight">{form.name || currentUser.name}</p>
+              <p className="break-all text-sm text-muted-foreground">{form.email || currentUser.email}</p>
+              <p className="text-sm text-muted-foreground">{form.phone || "No phone added yet"}</p>
+              <p className="text-xs text-muted-foreground">Use the camera button to update your photo.</p>
             </div>
           </div>
 
-          <div className="grid gap-2 text-sm sm:text-right">
-            <p><span className="text-muted-foreground">Resident type:</span> {profile?.residentType ?? "student"}</p>
-            <p><span className="text-muted-foreground">Student ID:</span> {getStoredFileName(form.studentId, "-")}</p>
-            <p><span className="text-muted-foreground">Admission letter:</span> {getStoredFileName(form.admissionLetter, "-")}</p>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-6">
-          <section className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="font-display text-lg font-semibold">Personal details</h2>
-              <p className="text-sm text-muted-foreground">Keep your contact information up to date.</p>
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="min-w-0 rounded-[16px] bg-muted/35 px-4 py-3.5">
+              <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Resident type</p>
+              <p className="mt-2 text-sm font-medium capitalize text-foreground">{profile?.residentType ?? "student"}</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Full name</Label>
-                <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Institution</Label>
-                <Input value={form.institution} onChange={(event) => setForm({ ...form, institution: event.target.value })} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Emergency contact</Label>
-                <Input value={form.emergencyContact} onChange={(event) => setForm({ ...form, emergencyContact: event.target.value })} />
-              </div>
+            <div className="min-w-0 rounded-[16px] bg-muted/35 px-4 py-3.5">
+              <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Student ID</p>
+              <p className="mt-2 break-words text-sm text-foreground">{getStoredFileName(form.studentId, "-")}</p>
             </div>
-          </section>
-
-          <section className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="font-display text-lg font-semibold">Bio</h2>
-              <p className="text-sm text-muted-foreground">A short note for the hostel team.</p>
+            <div className="min-w-0 rounded-[16px] bg-muted/35 px-4 py-3.5">
+              <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Admission letter</p>
+              <p className="mt-2 break-words text-sm text-foreground">{getStoredFileName(form.admissionLetter, "-")}</p>
             </div>
-            <Textarea value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} rows={4} />
-          </section>
-
-          <section className="space-y-4">
-            <div className="space-y-1">
-              <h2 className="font-display text-lg font-semibold">Documents</h2>
-              <p className="text-sm text-muted-foreground">Only upload the files needed for verification.</p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FileUploader
-                label="Student ID card"
-                description="PDF or image."
-                accept=".pdf,image/*"
-                value={form.studentId}
-                onChange={(nextValue) => setForm({ ...form, studentId: nextValue })}
-              />
-              <FileUploader
-                label="Admission letter"
-                description="PDF or image."
-                accept=".pdf,image/*"
-                value={form.admissionLetter}
-                onChange={(nextValue) => setForm({ ...form, admissionLetter: nextValue })}
-              />
-            </div>
-          </section>
-
-          <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row">
-            <Button
-              variant="emerald"
-              className="flex-1"
-              onClick={async () => {
-                await ResidentService.updateProfile(currentUser.id, {
-                  ...form,
-                  avatar: form.passportPhoto,
-                });
-                await refreshData();
-                toast.success("Profile updated.");
-              }}
-            >
-              Save changes
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => {
-                logout(buildPublicPath("/"));
-                navigate(buildPublicPath("/"));
-              }}
-            >
-              Sign out
-            </Button>
           </div>
         </div>
-      </div>
+      </SurfacePanel>
+
+      <SurfacePanel title="Personal details" description="Keep your contact information up to date.">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Full name</Label>
+            <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Phone</Label>
+            <Input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <Label>Institution</Label>
+            <Input value={form.institution} onChange={(event) => setForm({ ...form, institution: event.target.value })} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label>Emergency contact</Label>
+            <Input value={form.emergencyContact} onChange={(event) => setForm({ ...form, emergencyContact: event.target.value })} />
+          </div>
+        </div>
+      </SurfacePanel>
+
+      <SurfacePanel title="Bio" description="A short note for the hostel team.">
+        <Textarea value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} rows={5} />
+      </SurfacePanel>
+
+      <SurfacePanel title="Documents" description="Only upload the files needed for verification.">
+        <div className="grid gap-4 md:grid-cols-2">
+          <FileUploader
+            label="Student ID card"
+            description="PDF or image."
+            accept=".pdf,image/*"
+            value={form.studentId}
+            onChange={(nextValue) => setForm({ ...form, studentId: nextValue })}
+          />
+          <FileUploader
+            label="Admission letter"
+            description="PDF or image."
+            accept=".pdf,image/*"
+            value={form.admissionLetter}
+            onChange={(nextValue) => setForm({ ...form, admissionLetter: nextValue })}
+          />
+        </div>
+      </SurfacePanel>
+
+      <SurfacePanel>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            variant="emerald"
+            className="flex-1"
+            onClick={async () => {
+              await ResidentService.updateProfile(currentUser.id, {
+                ...form,
+                avatar: form.passportPhoto,
+              });
+              await refreshData();
+              toast.success("Profile updated.");
+            }}
+          >
+            Save changes
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => {
+              logout(buildPublicPath("/"));
+              navigate(buildPublicPath("/"));
+            }}
+          >
+            Sign out
+          </Button>
+        </div>
+      </SurfacePanel>
     </div>
   );
 }

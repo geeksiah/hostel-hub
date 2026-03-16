@@ -1,6 +1,14 @@
 import type { Booking, BookingStatus, ExploreFilters, GroupBooking, Room, ServiceResult, WaitingListEntry } from "@/types";
 import { defaultExploreFilters } from "@/services/mock-data";
-import { createId, readDatabase, roomPrice, writeDatabase } from "@/services/store";
+import {
+  createId,
+  getRoomPriceForDuration,
+  getRoomPriceForPeriod,
+  readDatabase,
+  roomHasActiveRateForPeriod,
+  roomPrice,
+  writeDatabase,
+} from "@/services/store";
 import { delay, findCurrentHostel, getHostelRooms, nextWaitingPosition, nowIso, ok } from "@/modules/core/service-helpers";
 import { getTenantAdminRecipients, queueNotificationEvent } from "@/modules/notification/service";
 
@@ -20,15 +28,21 @@ export const BookingService = {
       const matchesType = merged.roomType === "all" || room.type === merged.roomType;
       const matchesUni = merged.university === "All Universities" || hostel.university === merged.university;
       const matchesGender = merged.genderPolicy === "all" || room.genderPolicy === merged.genderPolicy || hostel.genderPolicy === merged.genderPolicy;
-      const price = roomPrice(room, merged.duration === "all" ? "semester" : merged.duration);
+      const price = getRoomPriceForDuration(database, room, merged.duration === "all" ? "semester" : merged.duration);
       const withinPrice = price >= merged.priceRange[0] && price <= merged.priceRange[1];
       const availability = merged.availabilityOnly ? hasAvailableBed : true;
       return matchesSearch && matchesType && matchesUni && matchesGender && withinPrice && availability;
     });
 
     const sorted = [...rooms].sort((left, right) => {
-      if (merged.sort === "price_asc") return left.pricePerSemester - right.pricePerSemester;
-      if (merged.sort === "price_desc") return right.pricePerSemester - left.pricePerSemester;
+      if (merged.sort === "price_asc") {
+        return getRoomPriceForDuration(database, left, merged.duration === "all" ? "semester" : merged.duration)
+          - getRoomPriceForDuration(database, right, merged.duration === "all" ? "semester" : merged.duration);
+      }
+      if (merged.sort === "price_desc") {
+        return getRoomPriceForDuration(database, right, merged.duration === "all" ? "semester" : merged.duration)
+          - getRoomPriceForDuration(database, left, merged.duration === "all" ? "semester" : merged.duration);
+      }
       if (merged.sort === "beds_desc") {
         const leftBeds = database.beds.filter((bed) => bed.roomId === left.id && bed.status === "available").length;
         const rightBeds = database.beds.filter((bed) => bed.roomId === right.id && bed.status === "available").length;
@@ -58,7 +72,7 @@ export const BookingService = {
       throw new Error("Invalid booking payload");
     }
 
-    let amount = roomPrice(room, period.type);
+    let amount = getRoomPriceForPeriod(database, room, period);
     if (payload.discountCode) {
       const discount = database.discountCodes.find(
         (item) => item.hostelId === payload.hostelId && item.code === payload.discountCode.toUpperCase() && item.active,
@@ -203,13 +217,11 @@ export const BookingService = {
     await delay();
     const database = readDatabase();
     const period = database.periods.find((item) => item.id === payload.periodId);
-    const pricingRules = database.pricingRules
-      .filter((rule) => rule.hostelId === payload.hostelId && rule.periodType === period?.type && rule.active)
-      .map((rule) => rule.price);
     const roomPrices = database.rooms
       .filter((room) => room.hostelId === payload.hostelId)
-      .map((room) => roomPrice(room, period?.type ?? "semester"));
-    const estimateSource = [...pricingRules, ...roomPrices].filter((price) => price > 0);
+      .filter((room) => !period || roomHasActiveRateForPeriod(database, room.id, payload.periodId))
+      .map((room) => getRoomPriceForPeriod(database, room, period));
+    const estimateSource = roomPrices.filter((price) => price > 0);
     const estimatedBedPrice = estimateSource.length ? Math.min(...estimateSource) : 0;
     const request: GroupBooking = {
       id: createId("group"),
@@ -274,7 +286,7 @@ export const BookingService = {
       if (!bed) return;
       bed.status = "reserved";
       const room = database.rooms.find((item) => item.id === bed.roomId);
-      if (room) total += roomPrice(room, period?.type ?? "semester");
+      if (room) total += getRoomPriceForPeriod(database, room, period);
     });
     request.amount = total;
 
@@ -332,7 +344,7 @@ export const BookingService = {
         type: "waitlist",
         title: "Resident joined the waiting list",
         message: `A resident joined the ${payload.roomType} waitlist.`,
-        link: `/admin/waiting-list?waitlist=${entry.id}`,
+        link: `/admin/bookings?tab=waitlist&waitlist=${entry.id}`,
         targetType: "waitlist",
         targetId: entry.id,
         recipients: getTenantAdminRecipients(database, tenantId),
@@ -402,7 +414,7 @@ export const BookingService = {
       bedId: bed.id,
       periodId: entry.periodId,
       status: "reserved",
-      amount: roomPrice(room, period.type),
+      amount: getRoomPriceForPeriod(database, room, period),
       durationLabel: period.name,
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -465,7 +477,7 @@ export const BookingService = {
       booking.bedId = payload.bedId;
       booking.periodId = payload.periodId;
       booking.durationLabel = period.name;
-      booking.amount = roomPrice(room, period.type);
+      booking.amount = getRoomPriceForPeriod(database, room, period);
       booking.status = booking.status === "checked_in" ? "checked_in" : "confirmed";
       booking.updatedAt = nowIso();
     } else {
@@ -477,7 +489,7 @@ export const BookingService = {
         bedId: payload.bedId,
         periodId: payload.periodId,
         status: "confirmed",
-        amount: roomPrice(room, period.type),
+        amount: getRoomPriceForPeriod(database, room, period),
         durationLabel: period.name,
         createdAt: nowIso(),
         updatedAt: nowIso(),

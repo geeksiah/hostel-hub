@@ -630,6 +630,30 @@ const periods = [
   { id: "p4", hostelId: "h3", name: "Semester 1 2025/2026", type: "semester", startDate: "2025-08-18", endDate: "2025-12-18", isActive: true },
 ] satisfies AppDatabase["periods"];
 
+const roomPeriodRates = rooms.flatMap((room) =>
+  periods
+    .filter((period) => period.hostelId === room.hostelId)
+    .map((period) => {
+      const hostel = hostels.find((item) => item.id === room.hostelId);
+      const tenant = hostel ? tenants.find((item) => item.id === hostel.tenantId) : undefined;
+      const price =
+        period.type === "year"
+          ? room.pricePerYear
+          : period.type === "vacation"
+            ? room.pricePerNight * 45
+            : room.pricePerSemester;
+
+      return {
+        id: `rate-${room.id}-${period.id}`,
+        roomId: room.id,
+        periodId: period.id,
+        price,
+        currency: tenant?.currency ?? marketConfig.currency,
+        active: true,
+      };
+    }),
+) satisfies AppDatabase["roomPeriodRates"];
+
 const bookings = [
   { id: "bk1", residentId: "u3", roomId: "r3", bedId: "bed4", hostelId: "h1", periodId: "p1", status: "confirmed", amount: 1420, durationLabel: "Semester 1", createdAt: "2025-08-15T10:00:00.000Z", updatedAt: "2025-08-16T10:00:00.000Z", checkInDate: "2025-08-18T10:00:00.000Z" },
   { id: "bk2", residentId: "u4", roomId: "r2", bedId: "bed2", hostelId: "h1", periodId: "p1", status: "checked_in", amount: 2800, durationLabel: "Semester 1", createdAt: "2025-08-12T10:00:00.000Z", updatedAt: "2025-08-18T10:00:00.000Z", checkInDate: "2025-08-18T10:00:00.000Z" },
@@ -725,6 +749,7 @@ export function createSeedDatabase(): AppDatabase {
     hostels,
     blocks,
     rooms,
+    roomPeriodRates,
     beds,
     periods,
     bookings,
@@ -755,6 +780,7 @@ export const mockNotificationDispatches = seed.notificationDispatches;
 export const mockHostels = seed.hostels;
 export const mockBlocks = seed.blocks;
 export const mockRooms = seed.rooms;
+export const mockRoomPeriodRates = seed.roomPeriodRates;
 export const mockBeds = seed.beds;
 export const mockPeriods = seed.periods;
 export const mockBookings = seed.bookings;

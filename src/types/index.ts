@@ -190,6 +190,15 @@ export interface Room {
   genderPolicy: GenderPolicy;
 }
 
+export interface RoomPeriodRate {
+  id: string;
+  roomId: string;
+  periodId: string;
+  price: number;
+  currency: string;
+  active: boolean;
+}
+
 export interface Bed {
   id: string;
   roomId: string;
@@ -651,6 +660,7 @@ export interface AppDatabase {
   hostels: Hostel[];
   blocks: Block[];
   rooms: Room[];
+  roomPeriodRates: RoomPeriodRate[];
   beds: Bed[];
   periods: AcademicPeriod[];
   bookings: Booking[];

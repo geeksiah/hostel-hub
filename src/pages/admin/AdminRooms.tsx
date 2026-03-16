@@ -15,9 +15,26 @@ import { useApp } from "@/contexts/AppContext";
 import { formatCurrency, getHostelCurrency } from "@/lib/currency";
 import { resolveRoomGallery } from "@/lib/media";
 import { BedService, HostelService } from "@/services";
+import { getRoomPeriodRates, getRoomStartingPrice } from "@/services/store";
 import type { BedStatus } from "@/types";
 
+type RoomRateDraft = {
+  periodId: string;
+  price: number;
+  active: boolean;
+};
+
 const emptyBlockForm = { id: "", name: "", floors: 1 };
+
+const createDefaultRoomRates = (
+  periods: Array<{ id: string; type: "semester" | "year" | "vacation"; isActive: boolean }>,
+): RoomRateDraft[] =>
+  periods.map((period) => ({
+    periodId: period.id,
+    active: period.isActive,
+    price: period.type === "year" ? 5000 : period.type === "vacation" ? 4050 : 2500,
+  }));
+
 const emptyRoomForm = {
   id: "",
   blockId: "",
@@ -25,13 +42,12 @@ const emptyRoomForm = {
   type: "double",
   capacity: 2,
   floor: 1,
-  pricePerSemester: 2500,
-  pricePerYear: 5000,
-  pricePerNight: 90,
   genderPolicy: "mixed",
   amenities: "WiFi, Desk",
   images: [] as string[],
+  periodRates: [] as RoomRateDraft[],
 };
+
 const emptyBedForm = { id: "", roomId: "", label: "", status: "available" as BedStatus };
 
 export default function AdminRooms() {
@@ -48,7 +64,8 @@ export default function AdminRooms() {
     if (!database) return null;
     const blocks = database.blocks.filter((block) => block.hostelId === session.currentHostelId);
     const rooms = database.rooms.filter((room) => room.hostelId === session.currentHostelId);
-    return { blocks, rooms };
+    const periods = database.periods.filter((period) => period.hostelId === session.currentHostelId);
+    return { blocks, rooms, periods };
   }, [database, session.currentHostelId]);
 
   const selectedRoom = workspace?.rooms.find((room) => room.id === selectedRoomId) ?? workspace?.rooms[0];
@@ -56,6 +73,16 @@ export default function AdminRooms() {
 
   if (!database || !workspace) return <div className="py-10">Loading rooms...</div>;
   const currency = getHostelCurrency(database, session.currentHostelId);
+
+  const buildRoomRateDrafts = (roomId?: string) =>
+    workspace.periods.map((period) => {
+      const existing = roomId ? getRoomPeriodRates(database, roomId).find((rate) => rate.periodId === period.id) : undefined;
+      return {
+        periodId: period.id,
+        active: existing?.active ?? period.isActive,
+        price: existing?.price ?? (period.type === "year" ? 5000 : period.type === "vacation" ? 4050 : 2500),
+      };
+    });
 
   const openCreateBlock = () => {
     setBlockForm(emptyBlockForm);
@@ -84,7 +111,11 @@ export default function AdminRooms() {
   };
 
   const openCreateRoom = () => {
-    setRoomForm({ ...emptyRoomForm, blockId: workspace.blocks[0]?.id ?? "" });
+    setRoomForm({
+      ...emptyRoomForm,
+      blockId: workspace.blocks[0]?.id ?? "",
+      periodRates: createDefaultRoomRates(workspace.periods),
+    });
     setRoomOverlayOpen(true);
   };
 
@@ -98,12 +129,10 @@ export default function AdminRooms() {
       type: room.type,
       capacity: room.capacity,
       floor: room.floor,
-      pricePerSemester: room.pricePerSemester,
-      pricePerYear: room.pricePerYear,
-      pricePerNight: room.pricePerNight,
       genderPolicy: room.genderPolicy,
       amenities: room.amenities.join(", "),
       images: room.images,
+      periodRates: buildRoomRateDrafts(room.id),
     });
     setRoomOverlayOpen(true);
   };
@@ -116,12 +145,14 @@ export default function AdminRooms() {
       type: roomForm.type as "single" | "double" | "triple" | "quad",
       capacity: roomForm.capacity,
       floor: roomForm.floor,
-      pricePerSemester: roomForm.pricePerSemester,
-      pricePerYear: roomForm.pricePerYear,
-      pricePerNight: roomForm.pricePerNight,
       genderPolicy: roomForm.genderPolicy as "mixed" | "female_only" | "male_only",
       amenities: roomForm.amenities.split(",").map((item) => item.trim()).filter(Boolean),
       images: roomForm.images,
+      periodRates: roomForm.periodRates.map((rate) => ({
+        periodId: rate.periodId,
+        price: rate.price,
+        active: rate.active,
+      })),
     };
 
     if (roomForm.id) {
@@ -177,7 +208,7 @@ export default function AdminRooms() {
     <div className="space-y-6">
       <PageHeader
         title="Rooms"
-        description="Blocks, rooms, beds, and photos."
+        description="Blocks, rooms, beds, photos, and period pricing."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={openCreateBlock}>
@@ -197,7 +228,7 @@ export default function AdminRooms() {
           <div className="flex items-center justify-between border-b px-4 py-3">
             <div>
               <h2 className="font-display text-lg font-semibold">Blocks</h2>
-                <p className="text-sm text-muted-foreground">Hostel blocks and floors.</p>
+              <p className="text-sm text-muted-foreground">Hostel blocks and floors.</p>
             </div>
           </div>
           <Table>
@@ -262,7 +293,7 @@ export default function AdminRooms() {
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div>
                 <h2 className="font-display text-lg font-semibold">Rooms</h2>
-                <p className="text-sm text-muted-foreground">Room details, pricing, and beds.</p>
+                <p className="text-sm text-muted-foreground">Room setup, available periods, and bed inventory.</p>
               </div>
             </div>
 
@@ -272,7 +303,8 @@ export default function AdminRooms() {
                   <TableHead>Room</TableHead>
                   <TableHead>Block</TableHead>
                   <TableHead>Capacity</TableHead>
-                  <TableHead>Semester price</TableHead>
+                  <TableHead>Periods</TableHead>
+                  <TableHead>From</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[72px] text-right">Actions</TableHead>
                 </TableRow>
@@ -281,6 +313,7 @@ export default function AdminRooms() {
                 {workspace.rooms.map((room) => {
                   const block = workspace.blocks.find((item) => item.id === room.blockId);
                   const availableBeds = database.beds.filter((bed) => bed.roomId === room.id && bed.status === "available").length;
+                  const activeRates = getRoomPeriodRates(database, room.id, { activeOnly: true });
                   return (
                     <TableRow
                       key={room.id}
@@ -295,7 +328,8 @@ export default function AdminRooms() {
                       </TableCell>
                       <TableCell>{block?.name ?? "-"}</TableCell>
                       <TableCell>{availableBeds}/{room.capacity} open</TableCell>
-                      <TableCell>{formatCurrency(room.pricePerSemester, currency)}</TableCell>
+                      <TableCell>{activeRates.length}</TableCell>
+                      <TableCell>{formatCurrency(getRoomStartingPrice(database, room), currency)}</TableCell>
                       <TableCell>
                         <StatusBadge
                           status={room.status}
@@ -368,14 +402,33 @@ export default function AdminRooms() {
 
                 <img src={resolveRoomGallery(selectedRoom.images)[0]} alt={selectedRoom.name} className="h-52 w-full rounded-2xl object-cover" />
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3">
                   <div className="rounded-xl bg-muted/60 p-3">
-                    <p className="text-xs text-muted-foreground">Semester</p>
-                    <p className="font-semibold">{formatCurrency(selectedRoom.pricePerSemester, currency)}</p>
+                    <p className="text-xs text-muted-foreground">Starting from</p>
+                    <p className="font-semibold">{formatCurrency(getRoomStartingPrice(database, selectedRoom), currency)}</p>
                   </div>
-                  <div className="rounded-xl bg-muted/60 p-3">
-                    <p className="text-xs text-muted-foreground">Year</p>
-                    <p className="font-semibold">{formatCurrency(selectedRoom.pricePerYear, currency)}</p>
+                  <div className="rounded-xl border bg-card p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium">Period pricing</p>
+                      <p className="text-xs text-muted-foreground">{getRoomPeriodRates(database, selectedRoom.id, { activeOnly: true }).length} active</p>
+                    </div>
+                    <div className="space-y-2">
+                      {workspace.periods.map((period) => {
+                        const rate = getRoomPeriodRates(database, selectedRoom.id).find((item) => item.periodId === period.id);
+                        return (
+                          <div key={period.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2">
+                            <div>
+                              <p className="text-sm font-medium">{period.name}</p>
+                              <p className="text-xs capitalize text-muted-foreground">{period.type}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold">{formatCurrency(rate?.price ?? 0, currency)}</p>
+                              <p className="text-xs text-muted-foreground">{rate?.active ? "Enabled" : "Hidden"}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -486,7 +539,7 @@ export default function AdminRooms() {
         open={roomOverlayOpen}
         onOpenChange={setRoomOverlayOpen}
         title={roomForm.id ? "Edit room" : "Add room"}
-        description="Room details, pricing, and photos."
+        description="Room details, period pricing, and photos."
         desktopClassName="max-w-4xl"
       >
         <div className="grid gap-4 md:grid-cols-2">
@@ -540,21 +593,68 @@ export default function AdminRooms() {
               <option value="male_only">Male only</option>
             </select>
           </div>
-          <div className="space-y-2">
-            <Label>Semester price</Label>
-            <Input type="number" min={0} value={roomForm.pricePerSemester} onChange={(event) => setRoomForm({ ...roomForm, pricePerSemester: Number(event.target.value) })} />
-          </div>
-          <div className="space-y-2">
-            <Label>Academic year price</Label>
-            <Input type="number" min={0} value={roomForm.pricePerYear} onChange={(event) => setRoomForm({ ...roomForm, pricePerYear: Number(event.target.value) })} />
-          </div>
-          <div className="space-y-2">
-            <Label>Nightly price</Label>
-            <Input type="number" min={0} value={roomForm.pricePerNight} onChange={(event) => setRoomForm({ ...roomForm, pricePerNight: Number(event.target.value) })} />
-          </div>
           <div className="space-y-2 md:col-span-2">
             <Label>Amenities</Label>
             <Input value={roomForm.amenities} onChange={(event) => setRoomForm({ ...roomForm, amenities: event.target.value })} placeholder="WiFi, Desk, AC" />
+          </div>
+          <div className="rounded-2xl border bg-muted/30 p-4 md:col-span-2">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-medium">Period pricing</h3>
+                <p className="text-sm text-muted-foreground">Enable the periods this room can be sold for and set a direct price for each one.</p>
+              </div>
+            </div>
+
+            {workspace.periods.length ? (
+              <div className="space-y-3">
+                {workspace.periods.map((period) => {
+                  const rate = roomForm.periodRates.find((item) => item.periodId === period.id) ?? { periodId: period.id, active: false, price: 0 };
+                  return (
+                    <div key={period.id} className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1.2fr_0.8fr_auto] md:items-center">
+                      <div>
+                        <p className="font-medium">{period.name}</p>
+                        <p className="text-xs capitalize text-muted-foreground">{period.type}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Price ({currency})</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={rate.price}
+                          onChange={(event) =>
+                            setRoomForm({
+                              ...roomForm,
+                              periodRates: roomForm.periodRates.map((item) =>
+                                item.periodId === period.id ? { ...item, price: Number(event.target.value) } : item,
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          checked={rate.active}
+                          onChange={(event) =>
+                            setRoomForm({
+                              ...roomForm,
+                              periodRates: roomForm.periodRates.map((item) =>
+                                item.periodId === period.id ? { ...item, active: event.target.checked } : item,
+                              ),
+                            })
+                          }
+                        />
+                        Available
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed bg-card px-4 py-5 text-sm text-muted-foreground">
+                Create at least one stay period on the Periods page before pricing rooms.
+              </div>
+            )}
           </div>
           <div className="md:col-span-2">
             <FileUploader

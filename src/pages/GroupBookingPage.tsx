@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApp } from "@/contexts/AppContext";
 import { formatCurrency, getHostelCurrency } from "@/lib/currency";
 import { getGroupWorkspace } from "@/modules/group/selectors";
+import { getRoomPriceForPeriod, roomHasActiveRateForPeriod } from "@/services/store";
 import { BookingService } from "@/services";
 import type { AppDatabase } from "@/types";
 
@@ -20,17 +21,11 @@ function estimateGroupAmount(
   database: AppDatabase,
 ) {
   const period = database.periods.find((item) => item.id === periodId);
-  const pricing = database.pricingRules
-    .filter((rule) => rule.hostelId === hostelId && rule.periodType === period?.type && rule.active)
-    .map((rule) => rule.price);
   const roomPrices = database.rooms
     .filter((room) => room.hostelId === hostelId)
-    .map((room) => {
-      if (period?.type === "year") return room.pricePerYear;
-      if (period?.type === "vacation") return room.pricePerNight * 45;
-      return room.pricePerSemester;
-    });
-  const source = [...pricing, ...roomPrices].filter((price) => price > 0);
+    .filter((room) => !period || roomHasActiveRateForPeriod(database, room.id, period.id))
+    .map((room) => getRoomPriceForPeriod(database, room, period));
+  const source = roomPrices.filter((price) => price > 0);
   return (source.length ? Math.min(...source) : 0) * bedsRequired;
 }
 

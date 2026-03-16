@@ -6,10 +6,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApp } from "@/contexts/AppContext";
-import { adminAccountTypeOptions } from "@/modules/admin/permissions";
+import { adminAccountTypeOptions, hasAdminCapability } from "@/modules/admin/permissions";
 import { emailProviderSpecs, paymentProviderSpecs, smsProviderSpecs } from "@/modules/integrations/provider-specs";
 import { createDefaultTenantPaymentMethods, mergeTenantPaymentMethods } from "@/modules/payment/config";
 import { createDefaultTenantNotificationConfig } from "@/modules/notification/config";
@@ -52,11 +53,12 @@ export default function AdminSettings() {
   const notificationConfig = useMemo(() => database?.tenantNotificationConfigs.find((item) => item.tenantId === tenantId), [database, tenantId]);
   const defaultMethods = useMemo(() => (database ? createDefaultTenantPaymentMethods(database.marketConfig) : []), [database]);
 
-  const [tab, setTab] = useState(searchParams.get("tab") ?? "profile");
+  const [tab, setTab] = useState(searchParams.get("tab") ?? "organization");
   const [selectedSiteId, setSelectedSiteId] = useState("");
   const [selectedHostelId, setSelectedHostelId] = useState("");
   const [newDomain, setNewDomain] = useState("");
   const [profileForm, setProfileForm] = useState({ name: "", currency: "GHS", location: "", email: "", phone: "", description: "" });
+  const [myProfileForm, setMyProfileForm] = useState({ name: "", email: "", phone: "" });
   const [brandForm, setBrandForm] = useState({ logoText: "", primaryColor: "#103B31", secondaryColor: "#1F9D6B", accentColor: "#F59E0B", heroFromColor: "#103B31", heroToColor: "#1E5A4B" });
   const [websiteForm, setWebsiteForm] = useState({ name: "", slug: "", renderMode: "template", headline: "", subheadline: "", aboutBody: "", contactBody: "", faq: "", heroMediaUrl: "", customHtml: "", customCss: "", customJs: "", pages: [] as Array<{ id: string; title: string; navLabel: string; visibleInNav: boolean; summary?: string; kind: string }> });
   const [micrositeForm, setMicrositeForm] = useState({ hostelId: "", name: "", slug: "" });
@@ -82,6 +84,8 @@ export default function AdminSettings() {
   );
   const hostelSlotsRemaining = getRemainingHostelSlots(tenant);
   const hostelLimit = getTenantHostelLimit(tenant);
+  const canManageSettings = hasAdminCapability(currentUser, "settings");
+  const canManageOwnAccount = hasAdminCapability(currentUser, "account");
   const supportedCurrencies = database.marketConfig.supportedCurrencies?.length
     ? database.marketConfig.supportedCurrencies
     : [tenant.currency ?? database.marketConfig.currency ?? "GHS"];
@@ -90,9 +94,37 @@ export default function AdminSettings() {
     database?.domains.find((item) => item.siteId === primarySite?.id && item.isManagedFallback);
   const tenantBaseUrl = primaryDomain ? `https://${primaryDomain.hostname}` : primarySite && database ? `https://${primarySite.slug}.${database.marketConfig.managedDomainSuffix}` : "";
 
-  useEffect(() => {
-    setTab(searchParams.get("tab") ?? "profile");
+  const requestedTab = useMemo(() => {
+    const value = searchParams.get("tab") ?? "organization";
+    if (value === "profile") return "organization";
+    if (value === "accounts") return "team";
+    return value;
   }, [searchParams]);
+
+  const availableTabs = useMemo(() => {
+    const items: Array<{ value: string; label: string }> = [];
+    if (canManageOwnAccount) items.push({ value: "my-profile", label: "My Profile" });
+    if (canManageSettings) {
+      items.push(
+        { value: "organization", label: "Organization" },
+        { value: "branding", label: "Branding" },
+        { value: "hostels", label: "Hostels" },
+        { value: "website", label: "Website" },
+        { value: "domains", label: "Domains" },
+        { value: "payment", label: "Payment Setup" },
+        { value: "messaging", label: "Messaging" },
+        { value: "team", label: "Team" },
+        { value: "notifications", label: "Notifications" },
+      );
+    }
+    return items;
+  }, [canManageOwnAccount, canManageSettings]);
+
+  useEffect(() => {
+    const fallbackTab = availableTabs[0]?.value ?? "my-profile";
+    const nextTab = availableTabs.some((item) => item.value === requestedTab) ? requestedTab : fallbackTab;
+    setTab(nextTab);
+  }, [availableTabs, requestedTab]);
 
   useEffect(() => {
     if (sites.length && !selectedSiteId) setSelectedSiteId(sites[0].id);
@@ -109,6 +141,14 @@ export default function AdminSettings() {
       description: currentHostel?.description ?? "",
     });
   }, [currentHostel, currentUser?.email, currentUser?.phone, database?.marketConfig.currency, tenant?.currency, tenant?.name]);
+
+  useEffect(() => {
+    setMyProfileForm({
+      name: currentUser?.name ?? "",
+      email: currentUser?.email ?? "",
+      phone: currentUser?.phone ?? "",
+    });
+  }, [currentUser?.email, currentUser?.name, currentUser?.phone]);
 
   useEffect(() => {
     setBrandForm({
@@ -259,23 +299,41 @@ export default function AdminSettings() {
     setAccountForm({ id: "", name: "", email: "", phone: "", hostelId: "", adminAccountType: "manager", accountStatus: "active" });
   };
 
+  const saveMyProfile = async () => {
+    if (!currentUser) return;
+    await UserService.updateAccount(currentUser.id, {
+      name: myProfileForm.name.trim(),
+      email: myProfileForm.email.trim(),
+      phone: myProfileForm.phone.trim(),
+    });
+    await refreshData();
+    toast.success("Profile updated.");
+  };
+
+  const assignedHostels = currentUser?.hostelId
+    ? hostels.filter((hostel) => hostel.id === currentUser.hostelId)
+    : hostels;
+  const manualPaymentMethods = paymentForm.methods.filter(
+    (method) => method.method === "bank_transfer" || method.method === "cash",
+  );
+  const updatePaymentMethod = (methodKey: string, updates: Partial<(typeof paymentForm.methods)[number]>) => {
+    setPaymentForm((current) => ({
+      ...current,
+      methods: current.methods.map((item) => (item.method === methodKey ? { ...item, ...updates } : item)),
+    }));
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" description="Brand, sites, payments, messaging, and accounts." />
+      <PageHeader title="Settings" description="Organization controls, payment setup, and personal profile." />
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="branding">Branding</TabsTrigger>
-          <TabsTrigger value="hostels">Hostels</TabsTrigger>
-          <TabsTrigger value="website">Website</TabsTrigger>
-          <TabsTrigger value="domains">Domains</TabsTrigger>
-          <TabsTrigger value="payment">Payment Setup</TabsTrigger>
-          <TabsTrigger value="messaging">Messaging</TabsTrigger>
-          <TabsTrigger value="accounts">Accounts</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          {availableTabs.map((item) => (
+            <TabsTrigger key={item.value} value={item.value}>{item.label}</TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="profile">
+        <TabsContent value="organization">
           <div className="rounded-2xl border bg-card p-5 space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -308,6 +366,49 @@ export default function AdminSettings() {
             <div className="flex flex-wrap gap-3">
               <Button variant="emerald" onClick={() => void saveProfile()}>Save profile</Button>
               <Button variant="outline" onClick={async () => { await resetDemo(); toast.success("Demo reset complete."); }}>Reset demo</Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="my-profile">
+          <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
+            <div className="rounded-2xl border bg-card p-5 space-y-4">
+              <div>
+                <h2 className="font-display text-lg font-semibold">My profile</h2>
+                <p className="text-sm text-muted-foreground">Personal account details and assigned hostel access.</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Full name</Label>
+                  <Input value={myProfileForm.name} onChange={(event) => setMyProfileForm({ ...myProfileForm, name: event.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={myProfileForm.email} onChange={(event) => setMyProfileForm({ ...myProfileForm, email: event.target.value })} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Phone</Label>
+                  <Input value={myProfileForm.phone} onChange={(event) => setMyProfileForm({ ...myProfileForm, phone: event.target.value })} />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="emerald" onClick={() => void saveMyProfile()}>Save profile</Button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border bg-card p-5 space-y-4">
+              <div>
+                <h2 className="font-display text-lg font-semibold">Assigned hostels</h2>
+                <p className="text-sm text-muted-foreground">Access follows your account type and hostel assignment.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {assignedHostels.map((hostel) => (
+                  <div key={hostel.id} className="rounded-2xl border p-4">
+                    <p className="font-medium">{hostel.name}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{hostel.location}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -478,7 +579,6 @@ export default function AdminSettings() {
               <div className="space-y-2"><Label>Provider</Label><select value={paymentForm.provider} onChange={(event) => { const option = paymentProviderSpecs[event.target.value as keyof typeof paymentProviderSpecs]; setPaymentForm({ ...paymentForm, provider: event.target.value, providerDisplayName: option?.label ?? "" }); }} className="h-10 w-full rounded-md border bg-background px-3 text-sm"><option value="">Select provider</option>{Object.values(paymentProviderSpecs).map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></div>
               <div className="space-y-2"><Label>Merchant label</Label><Input value={paymentForm.merchantLabel} onChange={(event) => setPaymentForm({ ...paymentForm, merchantLabel: event.target.value })} /></div>
             </div>
-            {paymentForm.provider ? <div className="rounded-2xl border bg-muted/40 p-4 text-sm text-muted-foreground">{paymentProviderSpecs[paymentForm.provider as keyof typeof paymentProviderSpecs].docs.map((url) => <p key={url}>{url}</p>)}</div> : null}
             {paymentForm.provider ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {paymentProviderSpecs[paymentForm.provider as keyof typeof paymentProviderSpecs].fields.map((field) => (
@@ -490,18 +590,31 @@ export default function AdminSettings() {
                 ))}
               </div>
             ) : null}
+            <div className="rounded-2xl border bg-muted/35 p-4 text-sm text-muted-foreground">
+              Online card and mobile-money methods stay controlled by the connected gateway. Configure only the manual fallback methods here.
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
-              {paymentForm.methods.map((method) => (
+              {manualPaymentMethods.map((method) => (
                 <div key={method.method} className="rounded-2xl border p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <div><p className="font-medium capitalize">{method.method.replace("_", " ")}</p><p className="text-xs text-muted-foreground">{method.channel}</p></div>
-                    <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={method.enabled} onChange={(event) => setPaymentForm({ ...paymentForm, methods: paymentForm.methods.map((item) => item.method === method.method ? { ...item, enabled: event.target.checked } : item) })} /> Enabled</label>
+                    <div>
+                      <p className="font-medium capitalize">{method.method.replace("_", " ")}</p>
+                      <p className="text-xs text-muted-foreground">{method.channel}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted-foreground">{method.enabled ? "Enabled" : "Disabled"}</span>
+                      <Switch
+                        checked={method.enabled}
+                        onCheckedChange={(checked) => updatePaymentMethod(method.method, { enabled: checked })}
+                        aria-label={`Toggle ${method.displayLabel}`}
+                      />
+                    </div>
                   </div>
                   <div className="mt-3 space-y-2">
                     <Label>Label</Label>
-                    <Input value={method.displayLabel} onChange={(event) => setPaymentForm({ ...paymentForm, methods: paymentForm.methods.map((item) => item.method === method.method ? { ...item, displayLabel: event.target.value } : item) })} />
+                    <Input value={method.displayLabel} onChange={(event) => updatePaymentMethod(method.method, { displayLabel: event.target.value })} />
                     <Label>Instructions</Label>
-                    <Textarea rows={3} value={method.instructions ?? ""} onChange={(event) => setPaymentForm({ ...paymentForm, methods: paymentForm.methods.map((item) => item.method === method.method ? { ...item, instructions: event.target.value } : item) })} />
+                    <Textarea rows={3} value={method.instructions ?? ""} onChange={(event) => updatePaymentMethod(method.method, { instructions: event.target.value })} />
                   </div>
                 </div>
               ))}
@@ -556,7 +669,7 @@ export default function AdminSettings() {
           </div>
         </TabsContent>
 
-        <TabsContent value="accounts">
+        <TabsContent value="team">
           <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
             <div className="rounded-2xl border bg-card p-5 space-y-4">
               <div>

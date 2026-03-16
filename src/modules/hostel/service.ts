@@ -6,10 +6,69 @@ import type {
   Hostel,
   PricingRule,
   Room,
+  RoomPeriodRate,
   ServiceResult,
 } from "@/types";
 import { createId, readDatabase, writeDatabase } from "@/services/store";
 import { delay, getHostelRooms, nowIso, ok } from "@/modules/core/service-helpers";
+
+type RoomRateInput = Pick<RoomPeriodRate, "periodId" | "price" | "active">;
+
+function deriveLegacyRoomPricing(
+  database: ReturnType<typeof readDatabase>,
+  hostelId: string,
+  rates: RoomRateInput[] | undefined,
+  fallback?: Partial<Room>,
+) {
+  const getPrices = (type: AcademicPeriod["type"]) =>
+    (rates ?? [])
+      .filter((rate) => {
+        const period = database.periods.find((item) => item.id === rate.periodId);
+        return rate.active && period?.type === type;
+      })
+      .map((rate) => rate.price)
+      .filter((price) => price > 0);
+
+  const semesterPrices = getPrices("semester");
+  const yearPrices = getPrices("year");
+  const vacationPrices = getPrices("vacation");
+
+  return {
+    pricePerSemester:
+      semesterPrices.length ? Math.min(...semesterPrices) : fallback?.pricePerSemester ?? 0,
+    pricePerYear:
+      yearPrices.length
+        ? Math.min(...yearPrices)
+        : fallback?.pricePerYear ?? semesterPrices[0] ?? fallback?.pricePerSemester ?? 0,
+    pricePerNight:
+      vacationPrices.length
+        ? Math.max(40, Math.round(Math.min(...vacationPrices) / 45))
+        : fallback?.pricePerNight ?? Math.max(40, Math.round(((fallback?.pricePerSemester ?? 1000) || 1000) / 30)),
+  };
+}
+
+function replaceRoomPeriodRates(
+  database: ReturnType<typeof readDatabase>,
+  roomId: string,
+  hostelId: string,
+  rates: RoomRateInput[],
+) {
+  const hostel = database.hostels.find((item) => item.id === hostelId);
+  const tenant = hostel ? database.tenants.find((item) => item.id === hostel.tenantId) : undefined;
+  const currency = tenant?.currency ?? database.marketConfig.currency;
+
+  database.roomPeriodRates = database.roomPeriodRates.filter((rate) => rate.roomId !== roomId);
+  database.roomPeriodRates.push(
+    ...rates.map((rate) => ({
+      id: createId("rate"),
+      roomId,
+      periodId: rate.periodId,
+      price: rate.price,
+      active: rate.active,
+      currency,
+    })),
+  );
+}
 
 export const HostelService = {
   async listHostels(): Promise<ServiceResult<Hostel[]>> {
@@ -102,14 +161,18 @@ export const HostelService = {
     if (hasActiveBookings) return ok(false);
     database.blocks = database.blocks.filter((item) => item.id !== id);
     database.rooms = database.rooms.filter((room) => room.blockId !== id);
+    database.roomPeriodRates = database.roomPeriodRates.filter((rate) => !roomIds.includes(rate.roomId));
     database.beds = database.beds.filter((bed) => database.rooms.some((room) => room.id === bed.roomId));
     writeDatabase(database);
     return ok(true);
   },
 
-  async createRoom(payload: Partial<Room> & { hostelId: string; blockId: string; name: string }): Promise<ServiceResult<Room>> {
+  async createRoom(
+    payload: Partial<Room> & { hostelId: string; blockId: string; name: string; periodRates?: RoomRateInput[] },
+  ): Promise<ServiceResult<Room>> {
     await delay();
     const database = readDatabase();
+    const legacyPricing = deriveLegacyRoomPricing(database, payload.hostelId, payload.periodRates, payload);
     const room: Room = {
       id: createId("room"),
       hostelId: payload.hostelId,
@@ -121,14 +184,17 @@ export const HostelService = {
       floor: payload.floor ?? 1,
       amenities: payload.amenities ?? [],
       images: payload.images ?? [],
-      pricePerSemester: payload.pricePerSemester ?? 0,
-      pricePerYear: payload.pricePerYear ?? (payload.pricePerSemester ?? 0) * 2,
-      pricePerNight: payload.pricePerNight ?? Math.max(40, Math.round((payload.pricePerSemester ?? 1000) / 30)),
+      pricePerSemester: legacyPricing.pricePerSemester,
+      pricePerYear: legacyPricing.pricePerYear,
+      pricePerNight: legacyPricing.pricePerNight,
       status: payload.status ?? "available",
       genderPolicy: payload.genderPolicy ?? "mixed",
     };
 
     database.rooms.push(room);
+    if (payload.periodRates?.length) {
+      replaceRoomPeriodRates(database, room.id, payload.hostelId, payload.periodRates);
+    }
 
     for (let index = 0; index < (payload.capacity ?? 1); index += 1) {
       database.beds.push({
@@ -143,19 +209,31 @@ export const HostelService = {
     return ok(room);
   },
 
-  async updateRoom(id: string, payload: Partial<Room>): Promise<ServiceResult<Room | undefined>> {
+  async updateRoom(
+    id: string,
+    payload: Partial<Room> & { periodRates?: RoomRateInput[] },
+  ): Promise<ServiceResult<Room | undefined>> {
     await delay();
     const database = readDatabase();
     const room = database.rooms.find((item) => item.id === id);
     if (room) {
-      Object.assign(room, payload);
+      const { periodRates, ...roomPayload } = payload;
+      Object.assign(room, roomPayload);
 
-      if (typeof payload.capacity === "number") {
+      if (periodRates) {
+        const legacyPricing = deriveLegacyRoomPricing(database, room.hostelId, periodRates, room);
+        room.pricePerSemester = legacyPricing.pricePerSemester;
+        room.pricePerYear = legacyPricing.pricePerYear;
+        room.pricePerNight = legacyPricing.pricePerNight;
+        replaceRoomPeriodRates(database, room.id, room.hostelId, periodRates);
+      }
+
+      if (typeof roomPayload.capacity === "number") {
         const roomBeds = database.beds.filter((bed) => bed.roomId === id);
         const activeBeds = roomBeds.filter((bed) => bed.status === "occupied" || bed.status === "reserved");
 
-        if (payload.capacity > roomBeds.length) {
-          for (let index = roomBeds.length; index < payload.capacity; index += 1) {
+        if (roomPayload.capacity > roomBeds.length) {
+          for (let index = roomBeds.length; index < roomPayload.capacity; index += 1) {
             database.beds.push({
               id: createId("bed"),
               roomId: room.id,
@@ -165,12 +243,12 @@ export const HostelService = {
           }
         }
 
-        if (payload.capacity < roomBeds.length) {
+        if (roomPayload.capacity < roomBeds.length) {
           const removableBeds = roomBeds
             .filter((bed) => bed.status === "available" || bed.status === "maintenance")
             .slice()
             .reverse();
-          const targetRemoveCount = Math.min(roomBeds.length - payload.capacity, removableBeds.length);
+          const targetRemoveCount = Math.min(roomBeds.length - roomPayload.capacity, removableBeds.length);
 
           for (let index = 0; index < targetRemoveCount; index += 1) {
             database.beds = database.beds.filter((bed) => bed.id !== removableBeds[index].id);
@@ -192,6 +270,7 @@ export const HostelService = {
     );
     if (hasActiveBookings) return ok(false);
     database.rooms = database.rooms.filter((room) => room.id !== id);
+    database.roomPeriodRates = database.roomPeriodRates.filter((rate) => rate.roomId !== id);
     database.beds = database.beds.filter((bed) => bed.roomId !== id);
     writeDatabase(database);
     return ok(true);
@@ -335,6 +414,7 @@ export const PeriodPricingService = {
     await delay();
     const database = readDatabase();
     database.periods = database.periods.filter((period) => period.id !== id);
+    database.roomPeriodRates = database.roomPeriodRates.filter((rate) => rate.periodId !== id);
     writeDatabase(database);
     return ok(true);
   },

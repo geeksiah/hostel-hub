@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MobileBottomNav } from "@/components/shared/MobileBottomNav";
 import { Container } from "@/components/shared/Container";
+import { PageTransition } from "@/components/shared/motion";
 import { useApp } from "@/contexts/AppContext";
 import { useSiteContext } from "@/contexts/SiteContext";
 import { isAppRouteActive } from "@/lib/navigation";
@@ -60,7 +61,7 @@ export function ResidentLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background">
         <Container className="flex min-h-[72px] items-center justify-between gap-4 py-3">
           <div className="flex items-center gap-4 md:gap-6">
             <Link to={homeRoute} className="inline-flex items-center gap-2 font-display text-lg font-semibold tracking-tight">
@@ -117,7 +118,9 @@ export function ResidentLayout() {
       </header>
 
       <main className="pb-24 md:pb-10">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
 
       <MobileBottomNav />

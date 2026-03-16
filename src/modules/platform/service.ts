@@ -222,6 +222,7 @@ export const TenantService = {
     database.hostels = database.hostels.filter((hostel) => hostel.tenantId !== id);
     database.blocks = database.blocks.filter((block) => !blockIds.includes(block.id));
     database.rooms = database.rooms.filter((room) => !roomIds.includes(room.id));
+    database.roomPeriodRates = database.roomPeriodRates.filter((rate) => !roomIds.includes(rate.roomId) && !periodIds.includes(rate.periodId));
     database.beds = database.beds.filter((bed) => !bedIds.includes(bed.id));
     database.periods = database.periods.filter((period) => !periodIds.includes(period.id));
     database.bookings = database.bookings.filter((booking) => !bookingIds.includes(booking.id));

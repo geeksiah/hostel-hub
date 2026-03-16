@@ -4,7 +4,7 @@ import { useApp } from '@/contexts/AppContext';
 import {
   LayoutDashboard, BedDouble, Users, CalendarDays, CreditCard,
   Ticket, Building2, Settings, BarChart3, LogOut, ChevronLeft, UserCircle,
-  ListChecks, DoorOpen,
+  DoorOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,12 +29,9 @@ export const navItems: NavItem[] = [
   { label: 'Payments', path: '/admin/payments', icon: CreditCard, roles: ['tenant_admin'], capability: 'payments' },
   { label: 'Tickets', path: '/admin/tickets', icon: Ticket, roles: ['tenant_admin'], capability: 'tickets' },
   { label: 'Check-in', path: '/admin/checkin', icon: DoorOpen, roles: ['tenant_admin'], capability: 'checkin' },
-  { label: 'Waitlist', path: '/admin/waiting-list', icon: ListChecks, roles: ['tenant_admin'], capability: 'waiting_list' },
   { label: 'Periods', path: '/admin/periods', icon: CalendarDays, roles: ['tenant_admin'], capability: 'periods' },
-  { label: 'Pricing', path: '/admin/pricing', icon: CreditCard, roles: ['tenant_admin'], capability: 'pricing' },
   { label: 'Reports', path: '/admin/reports', icon: BarChart3, roles: ['tenant_admin'], capability: 'reports' },
   { label: 'Settings', path: '/admin/settings', icon: Settings, roles: ['tenant_admin'], capability: 'settings' },
-  { label: 'Account', path: '/admin/account', icon: UserCircle, roles: ['tenant_admin'], capability: 'account' },
   // Platform owner
   { label: 'Platform', path: '/platform', icon: LayoutDashboard, roles: ['platform_owner'] },
   { label: 'Tenants', path: '/platform/tenants', icon: Building2, roles: ['platform_owner'] },
@@ -62,22 +59,22 @@ export function AdminSidebar() {
       )}
 
       <aside className={cn(
-        'fixed lg:sticky top-0 left-0 z-50 h-screen flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-200',
+        'fixed lg:sticky top-0 left-0 z-50 h-screen flex flex-col border-r border-white/8 bg-slate-950 text-slate-100 transition-transform duration-200',
         sidebarOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full lg:translate-x-0 lg:w-[92px]',
       )}>
-        <div className="flex h-[72px] items-center justify-between border-b border-sidebar-border px-4">
+        <div className="flex h-[72px] items-center justify-between border-b border-white/8 px-4">
           {sidebarOpen && (
             <div>
               <span className="font-display text-lg font-semibold tracking-tight">{activeTheme?.logoText ?? "HostelHub"}</span>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-sidebar-foreground/45">{currentRole.replace('_', ' ')}</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{currentRole.replace('_', ' ')}</p>
             </div>
           )}
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-sidebar-foreground hover:bg-sidebar-accent">
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-300 hover:bg-white/6 hover:text-white">
             <ChevronLeft className={cn('h-4 w-4 transition-transform', !sidebarOpen && 'rotate-180')} />
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5">
+        <nav className="flex-1 px-3 py-4 space-y-1.5">
           {filtered.map(item => {
             const active = location.pathname === item.path;
             const link = (
@@ -86,8 +83,10 @@ export function AdminSidebar() {
                 to={item.path}
                 onClick={() => window.innerWidth < 1024 && setSidebarOpen(false)}
                 className={cn(
-                  'flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-colors',
-                  active ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_10px_20px_rgba(22,163,74,0.20)]' : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                  'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-white/10 text-white shadow-none'
+                    : 'text-slate-400 hover:bg-white/6 hover:text-white',
                   !sidebarOpen && 'justify-center px-0',
                 )}
               >
@@ -109,20 +108,20 @@ export function AdminSidebar() {
           })}
         </nav>
 
-        {currentUser && sidebarOpen && (
-          <div className="border-t border-sidebar-border p-4 space-y-3">
-            <div className="flex items-center gap-3 rounded-2xl bg-sidebar-accent/70 p-3">
-              <UserCircle className="h-8 w-8 text-sidebar-foreground/60" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{currentUser.name}</p>
-                <p className="text-xs uppercase tracking-[0.18em] text-sidebar-foreground/50">{currentRole.replace('_', ' ')}</p>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => logout(buildPublicPath("/"))} className="w-full justify-start rounded-xl text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground">
-              <LogOut className="h-4 w-4 mr-2" /> Sign Out
-            </Button>
-          </div>
-        )}
+        <div className="border-t border-white/8 p-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => logout(buildPublicPath("/"))}
+            className={cn(
+              "w-full rounded-xl text-slate-400 hover:bg-white/6 hover:text-white",
+              sidebarOpen ? "justify-start" : "justify-center px-0",
+            )}
+          >
+            <LogOut className={cn("h-4 w-4", sidebarOpen && "mr-2")} />
+            {sidebarOpen ? "Sign Out" : null}
+          </Button>
+        </div>
       </aside>
     </>
   );

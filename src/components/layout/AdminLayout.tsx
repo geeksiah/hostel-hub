@@ -1,9 +1,10 @@
-import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AdminSidebar, navItems } from './AdminSidebar';
 import { useApp } from '@/contexts/AppContext';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationTray } from '@/components/notifications/NotificationTray';
+import { PageTransition } from '@/components/shared/motion';
 import { canAccessAdminPath, getAdminFallbackPath } from '@/modules/admin/permissions';
 
 export function AdminLayout() {
@@ -20,9 +21,6 @@ export function AdminLayout() {
       : currentRole === 'platform_owner'
         ? 'Platform'
         : currentRole.replace(/_/g, ' ');
-  const unreadNotifications = database && currentUser
-    ? database.notifications.filter((item) => item.userId === currentUser.id && !item.read).length
-    : 0;
   const notifications = database && currentUser
     ? database.notifications.filter((item) => item.userId === currentUser.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))
     : [];
@@ -35,7 +33,7 @@ export function AdminLayout() {
     <div className="flex min-h-screen w-full bg-background">
       <AdminSidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-border/70 bg-background">
           <div className="flex min-h-[72px] flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-8 xl:px-10">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
@@ -52,7 +50,7 @@ export function AdminLayout() {
                 <select
                   value={session.currentHostelId}
                   onChange={(event) => setCurrentHostelId(event.target.value)}
-                  className="h-11 rounded-[10px] border border-border bg-card px-4 text-sm shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
+                  className="mr-2 h-11 rounded-[10px] border border-border bg-card px-4 text-sm shadow-[0_1px_2px_rgba(16,24,40,0.02)] lg:mr-4"
                 >
                   {tenantHostels.map((hostel) => (
                     <option key={hostel.id} value={hostel.id}>
@@ -63,16 +61,17 @@ export function AdminLayout() {
               ) : null}
               {currentRole === 'tenant_admin' ? <NotificationTray basePath="/admin/notifications" notifications={notifications} /> : null}
               {currentUser && (
-                <div className="hidden sm:flex items-center gap-2 rounded-full border border-border/80 bg-card px-3 py-2 text-sm shadow-[0_1px_2px_rgba(16,24,40,0.02)]">
-                  <span className="font-medium">{currentUser.name}</span>
-                  {unreadNotifications > 0 ? <span className="text-xs text-muted-foreground">{unreadNotifications} unread</span> : null}
-                </div>
+                <span className="hidden pr-1 text-sm font-medium text-foreground sm:inline">
+                  {currentUser.name}
+                </span>
               )}
             </div>
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:px-10 xl:px-12">
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
     </div>

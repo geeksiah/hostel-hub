@@ -14,6 +14,7 @@ import { formatCurrency, getHostelCurrency } from "@/lib/currency";
 import { getBrowsePath, getPropertyPath, getRoomPath } from "@/lib/app-shell";
 import { resolveImageSource, resolveRoomGallery } from "@/lib/media";
 import { getSiteHostels } from "@/modules/site/selectors";
+import { getRoomStartingPrice } from "@/services/store";
 import LandingPage from "@/pages/LandingPage";
 
 function formatRoomType(value: string) {
@@ -79,7 +80,7 @@ export default function ResolvedPublicSitePage() {
 
   if (page.kind === "about") {
     return (
-      <Container className="py-8 md:py-12">
+      <Container className="py-10 md:py-14">
         <SurfacePanel className="max-w-4xl">
           <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-muted-foreground">{content.eyebrow}</p>
           <h1 className="mt-3 font-display text-[2.4rem] font-semibold tracking-tight text-foreground">
@@ -93,9 +94,9 @@ export default function ResolvedPublicSitePage() {
 
   if (page.kind === "faq") {
     return (
-      <Container className="space-y-6 py-8 md:py-12">
+      <Container className="space-y-8 py-10 md:space-y-10 md:py-14">
         <Section title="Frequently asked questions" description="Everything residents usually ask before booking.">
-          <Grid>
+          <Grid className="gap-5">
             {content.faq.map((item) => (
               <SurfacePanel key={item.question}>
                 <h2 className="text-base font-semibold tracking-tight text-foreground">{item.question}</h2>
@@ -110,12 +111,12 @@ export default function ResolvedPublicSitePage() {
 
   if (page.kind === "contact") {
     return (
-      <Container className="space-y-6 py-8 md:py-12">
+      <Container className="space-y-8 py-10 md:space-y-10 md:py-14">
         <Section
           title={content.contactTitle ?? "Contact the hostel"}
           description={content.contactBody ?? "Reach the front desk for room availability, payments, or move-in support."}
         >
-          <Grid className="md:grid-cols-2">
+          <Grid className="gap-5 md:grid-cols-2">
             {hostels.map((hostel) => (
               <SurfacePanel key={hostel.id}>
                 <div className="space-y-4">
@@ -147,16 +148,16 @@ export default function ResolvedPublicSitePage() {
   }
 
   return (
-    <div className="pb-16 pt-4 md:pb-20 md:pt-6">
-      <Container className="space-y-12 md:space-y-16">
-        <section className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="surface-card flex flex-col justify-center p-6 sm:p-8 lg:p-10">
-            <div className="space-y-6">
-              <div className="space-y-3">
+    <div className="pb-24 pt-6 md:pb-28 md:pt-8">
+      <Container className="space-y-20 md:space-y-28">
+        <section className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12">
+          <div className="surface-card flex flex-col justify-center p-8 sm:p-10 lg:p-14">
+            <div className="space-y-7">
+              <div className="space-y-4">
                 <p className="text-[12px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
                   {primaryHostel?.location ?? publicSite.name}
                 </p>
-                <h1 className="font-display text-[2.6rem] font-semibold leading-[0.96] tracking-tight text-foreground sm:text-[3.2rem] lg:text-[4rem]">
+                <h1 className="font-display text-[2.8rem] font-bold leading-[0.95] tracking-tight text-foreground sm:text-[3.4rem] lg:text-[4.2rem]">
                   Stay closer.
                   <br />
                   Book smarter.
@@ -166,8 +167,8 @@ export default function ResolvedPublicSitePage() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <Button asChild variant="emerald" size="lg">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Button asChild variant="emerald" size="lg" className="w-full sm:w-auto">
                   <Link to={roomsPath}>
                     Browse rooms
                     <ArrowRight className="h-4 w-4" />
@@ -177,17 +178,18 @@ export default function ResolvedPublicSitePage() {
             </div>
           </div>
 
-          <div className="hero-surface relative min-h-[420px] overflow-hidden lg:min-h-[620px]">
+          <div className="hero-surface relative min-h-[460px] overflow-hidden lg:min-h-[640px]">
             <img src={heroImage} alt={publicSite.name} className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/62 via-slate-950/18 to-transparent" />
-            <div className="relative flex h-full flex-col justify-between p-5 sm:p-6 lg:p-8">
-              <div className="self-start rounded-full border border-white/18 bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-white backdrop-blur">
+          <div className="absolute inset-0 bg-slate-950/42" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/92 via-slate-950/62 to-slate-950/18" />
+            <div className="relative flex h-full flex-col justify-between p-6 sm:p-7 lg:p-9">
+              <div className="self-start rounded-full border border-white/14 bg-slate-950 px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-white">
                 {content.eyebrow}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-                <div className="rounded-[20px] border border-white/14 bg-white/10 p-4 text-white backdrop-blur">
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-white/80">
+                <div className="rounded-[20px] border border-white/10 bg-slate-950 p-4 text-white shadow-[0_10px_28px_rgba(15,23,42,0.2)]">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-white/84">
                     {primaryHostel?.location ? (
                       <span className="inline-flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
@@ -210,14 +212,14 @@ export default function ResolvedPublicSitePage() {
                 {featuredRooms[0] ? (
                   <Link
                     to={getRoomPath(currentUser, featuredRooms[0].id, buildPublicPath)}
-                    className="rounded-[20px] border border-white/14 bg-white px-4 py-4 text-foreground shadow-[0_12px_36px_rgba(15,23,42,0.14)]"
+                    className="rounded-[20px] border border-border/80 bg-card px-4 py-4 text-foreground shadow-[0_12px_36px_rgba(15,23,42,0.14)]"
                   >
                     <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Featured</p>
                     <p className="mt-2 text-base font-semibold tracking-tight capitalize">
                       {formatRoomType(featuredRooms[0].type)} room
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {formatCurrency(featuredRooms[0].pricePerSemester, currency)}
+                      {formatCurrency(getRoomStartingPrice(database, featuredRooms[0]), currency)}
                     </p>
                   </Link>
                 ) : null}
@@ -228,43 +230,34 @@ export default function ResolvedPublicSitePage() {
 
         <Section
           title="Room picks"
-          description="Clear room types, direct pricing, and a fast booking path."
+          description="Clear room types, direct pricing, and fast booking."
           actions={
             <Link to={roomsPath} className="text-sm font-medium text-secondary transition-colors hover:text-secondary/80">
               View all rooms
             </Link>
           }
         >
-          <Grid className="md:grid-cols-2 xl:grid-cols-3">
+          <Grid className="gap-7 md:grid-cols-2 xl:grid-cols-3">
             {featuredRooms.map((room) => {
               const roomBeds = database.beds.filter((bed) => bed.roomId === room.id && bed.status === "available").length;
+              const roomImage = resolveRoomGallery(room.images)[0] ?? heroImage;
               return (
                 <article key={room.id} className="surface-card flex h-full flex-col overflow-hidden">
-                  <Link to={getRoomPath(currentUser, room.id, buildPublicPath)} className="block overflow-hidden rounded-[16px]">
+                  <Link to={getRoomPath(currentUser, room.id, buildPublicPath)} className="block overflow-hidden">
                     <img
-                      src={resolveRoomGallery(room.images)[0]}
+                      src={roomImage}
                       alt={room.name}
-                      className="h-60 w-full object-cover transition duration-300 hover:scale-[1.02]"
+                      className="h-64 w-full object-cover transition duration-300 hover:scale-[1.02]"
                     />
                   </Link>
 
-                  <div className="flex flex-1 flex-col gap-5 p-6 pt-5">
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-lg font-semibold tracking-tight text-foreground capitalize">
-                            {formatRoomType(room.type)} room
-                          </h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Room {room.name} · Floor {room.floor} · {room.capacity} beds
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">From</p>
-                          <p className="mt-1 text-lg font-semibold tracking-tight text-foreground">
-                            {formatCurrency(room.pricePerSemester, currency)}
-                          </p>
-                        </div>
+                  <div className="flex flex-1 flex-col gap-6 p-6 sm:p-7">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold tracking-tight text-foreground capitalize">
+                          {formatRoomType(room.type)} room
+                        </h3>
+                        <p className="text-sm text-muted-foreground">Room {room.name} / Floor {room.floor} / {room.capacity} beds</p>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
@@ -277,8 +270,14 @@ export default function ResolvedPublicSitePage() {
                       </div>
                     </div>
 
-                    <div className="mt-auto">
-                      <Button asChild variant="outline" className="w-full">
+                    <div className="mt-auto flex items-end justify-between gap-4 border-t border-border/70 pt-5">
+                      <div>
+                        <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-muted-foreground">From</p>
+                        <p className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+                          {formatCurrency(getRoomStartingPrice(database, room), currency)}
+                        </p>
+                      </div>
+                      <Button asChild variant="outline">
                         <Link to={getRoomPath(currentUser, room.id, buildPublicPath)}>View room</Link>
                       </Button>
                     </div>
@@ -290,7 +289,7 @@ export default function ResolvedPublicSitePage() {
         </Section>
 
         <Section title="How booking works" description="The resident journey stays short and predictable.">
-          <Grid className="md:grid-cols-3">
+          <Grid className="gap-6 md:grid-cols-3">
             {steps.map((step, index) => (
               <SurfacePanel key={step.title} className="h-full">
                 <div className="space-y-4">
@@ -307,25 +306,25 @@ export default function ResolvedPublicSitePage() {
           </Grid>
         </Section>
 
-        <section className="hero-surface relative overflow-hidden p-6 text-white sm:p-8 lg:p-10">
+        <section className="hero-surface relative overflow-hidden p-7 text-white sm:p-9 lg:p-11">
           <img src={heroImage} alt={publicSite.name} className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-slate-950/42" />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/94 via-slate-950/82 to-slate-950/64" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-white/60">Ready to move</p>
-              <h2 className="mt-3 font-display text-[2.2rem] font-semibold leading-[1.02] tracking-tight sm:text-[2.8rem]">
+          <div className="absolute inset-0 bg-slate-950/86" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/96 to-slate-950/92" />
+          <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl rounded-[24px] bg-slate-950 p-5 sm:p-6">
+              <p className="text-[12px] font-medium uppercase tracking-[0.22em] text-white/64">Ready to move</p>
+              <h2 className="mt-3 font-display text-[2.3rem] font-semibold leading-[1.02] tracking-tight [text-shadow:0_3px_18px_rgba(15,23,42,0.45)] sm:text-[2.9rem]">
                 Book your room and keep the rest simple.
               </h2>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-white/78">
+              <p className="mt-3 max-w-xl text-sm leading-7 text-white/86 [text-shadow:0_2px_12px_rgba(15,23,42,0.35)]">
                 Availability, payments, support, and resident access stay connected from the same hostel account.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild variant="outline" size="lg" className="border-white/18 bg-white/10 text-white hover:bg-white/18 hover:text-white">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Button asChild variant="outline" size="lg" className="w-full border-white/22 bg-slate-950 text-white hover:bg-slate-900 hover:text-white sm:w-auto">
                 <Link to={loginHref}>Resident portal</Link>
               </Button>
-              <Button asChild variant="hero" size="lg">
+              <Button asChild variant="hero" size="lg" className="w-full sm:w-auto">
                 <Link to={roomsPath}>
                   Browse rooms
                   <ArrowRight className="h-4 w-4" />

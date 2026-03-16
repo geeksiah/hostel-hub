@@ -94,7 +94,7 @@ export function FileUploader({
             const parsed = parseStoredFile(item);
             const image = isStoredImage(item);
             return (
-              <div key={`${parsed?.name ?? item}-${index}`} className="flex w-full items-center gap-3 rounded-lg border bg-card p-3">
+              <div key={`${parsed?.name ?? item}-${index}`} className="flex w-full min-w-0 flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row sm:items-center">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
                   {image && parsed?.dataUrl ? (
                     <img src={parsed.dataUrl} alt={parsed.name} className="h-full w-full object-cover" />
@@ -108,27 +108,29 @@ export function FileUploader({
                   <p className="truncate text-sm font-medium">{getStoredFileName(item)}</p>
                   <p className="text-xs text-muted-foreground">{image ? "Image ready" : "Ready"}</p>
                 </div>
-                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => openStoredFile(item)}>
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => downloadStoredFile(item)}>
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => {
-                    if (multiple) {
-                      onChangeMany?.(selectedItems.filter((_, currentIndex) => currentIndex !== index));
-                      return;
-                    }
-                    onChange?.("");
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
+                  <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => openStoredFile(item)}>
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => downloadStoredFile(item)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => {
+                      if (multiple) {
+                        onChangeMany?.(selectedItems.filter((_, currentIndex) => currentIndex !== index));
+                        return;
+                      }
+                      onChange?.("");
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             );
           })}

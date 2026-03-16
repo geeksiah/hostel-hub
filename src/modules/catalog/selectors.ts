@@ -1,11 +1,12 @@
 import type { AppDatabase, ExploreFilters } from "@/types";
+import { getRoomAvailablePeriods, getRoomPeriodRates, getRoomStartingPrice } from "@/services/store";
 
 export function filterHostels(database: AppDatabase, filters: ExploreFilters) {
   return database.hostels
     .map((hostel) => {
       const rooms = database.rooms.filter((room) => room.hostelId === hostel.id);
       const availableBeds = database.beds.filter((bed) => rooms.some((room) => room.id === bed.roomId) && bed.status === "available").length;
-      const lowestPrice = rooms.length > 0 ? Math.min(...rooms.map((room) => room.pricePerSemester)) : 0;
+      const lowestPrice = rooms.length > 0 ? Math.min(...rooms.map((room) => getRoomStartingPrice(database, room))) : 0;
       const activePeriod =
         database.periods.find((period) => period.hostelId === hostel.id && period.isActive) ??
         database.periods.find((period) => period.hostelId === hostel.id);
@@ -49,7 +50,8 @@ export function getRoomView(database: AppDatabase, roomId: string) {
   const room = database.rooms.find((item) => item.id === roomId);
   const hostel = room ? database.hostels.find((item) => item.id === room.hostelId) : undefined;
   const beds = room ? database.beds.filter((bed) => bed.roomId === room.id) : [];
-  const periods = hostel ? database.periods.filter((period) => period.hostelId === hostel.id) : [];
+  const periods = room ? getRoomAvailablePeriods(database, room) : [];
+  const periodRates = room ? getRoomPeriodRates(database, room.id) : [];
   const discountCodes = hostel ? database.discountCodes.filter((code) => code.hostelId === hostel.id && code.active) : [];
-  return { room, hostel, beds, periods, discountCodes };
+  return { room, hostel, beds, periods, periodRates, discountCodes };
 }

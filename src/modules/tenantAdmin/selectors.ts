@@ -36,6 +36,7 @@ export function getTenantAdminWorkspace(database: AppDatabase, hostelId: string)
   const tickets = database.tickets.filter((ticket) => ticket.hostelId === hostelId);
   const waitingList = database.waitingList.filter((entry) => entry.hostelId === hostelId);
   const periods = database.periods.filter((period) => period.hostelId === hostelId);
+  const roomPeriodRates = database.roomPeriodRates.filter((rate) => rooms.some((room) => room.id === rate.roomId));
   const pricingRules = database.pricingRules.filter((rule) => rule.hostelId === hostelId);
   const discountCodes = database.discountCodes.filter((code) => code.hostelId === hostelId);
   const groupRequests = database.groupBookings.filter((request) => request.hostelId === hostelId);
@@ -51,6 +52,7 @@ export function getTenantAdminWorkspace(database: AppDatabase, hostelId: string)
     tickets,
     waitingList,
     periods,
+    roomPeriodRates,
     pricingRules,
     discountCodes,
     groupRequests,

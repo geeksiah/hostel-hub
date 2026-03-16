@@ -1,5 +1,5 @@
 import { createSeedDatabase } from "@/services/mock-data";
-import type { AppDatabase, BedStatus, BookingStatus, GroupBookingStatus, PaymentStatus, Room } from "@/types";
+import type { AcademicPeriod, AppDatabase, BedStatus, BookingStatus, GroupBookingStatus, PaymentStatus, Room, RoomPeriodRate } from "@/types";
 import { createDefaultTenantPaymentMethods, mergeTenantPaymentMethods } from "@/modules/payment/config";
 import { createDefaultTenantEmailConfig, createDefaultTenantSmsConfig } from "@/modules/integrations/config";
 import { createDefaultTenantNotificationConfig } from "@/modules/notification/config";
@@ -20,6 +20,53 @@ function mergeById<T extends { id: string }>(seedItems: T[], persistedItems: T[]
     map.set(item.id, clone(item));
   });
   return Array.from(map.values());
+}
+
+function getCurrencyForHostel(database: AppDatabase, hostelId: string) {
+  const hostel = database.hostels.find((item) => item.id === hostelId);
+  const tenant = hostel ? database.tenants.find((item) => item.id === hostel.tenantId) : undefined;
+  return tenant?.currency ?? database.marketConfig.currency;
+}
+
+function periodRateKey(roomId: string, periodId: string) {
+  return `${roomId}:${periodId}`;
+}
+
+function syncRoomPeriodRates(database: AppDatabase) {
+  const validRoomIds = new Set(database.rooms.map((room) => room.id));
+  const validPeriodIds = new Set(database.periods.map((period) => period.id));
+
+  database.roomPeriodRates = (database.roomPeriodRates ?? [])
+    .filter((rate) => validRoomIds.has(rate.roomId) && validPeriodIds.has(rate.periodId))
+    .map((rate) => {
+      const room = database.rooms.find((item) => item.id === rate.roomId);
+      return {
+        ...rate,
+        currency: rate.currency || (room ? getCurrencyForHostel(database, room.hostelId) : database.marketConfig.currency),
+      };
+    });
+
+  const existingKeys = new Set(database.roomPeriodRates.map((rate) => periodRateKey(rate.roomId, rate.periodId)));
+
+  database.rooms.forEach((room) => {
+    const hostelPeriods = database.periods.filter((period) => period.hostelId === room.hostelId);
+    const currency = getCurrencyForHostel(database, room.hostelId);
+
+    hostelPeriods.forEach((period) => {
+      const key = periodRateKey(room.id, period.id);
+      if (existingKeys.has(key)) return;
+
+      database.roomPeriodRates.push({
+        id: createId("rate"),
+        roomId: room.id,
+        periodId: period.id,
+        price: roomPrice(room, period.type),
+        currency,
+        active: true,
+      });
+      existingKeys.add(key);
+    });
+  });
 }
 
 function syncRoomMetrics(database: AppDatabase, roomId: string) {
@@ -80,6 +127,7 @@ export function normalizeDatabase(database: AppDatabase): AppDatabase {
     hostels: database.hostels ?? seed.hostels,
     blocks: database.blocks ?? seed.blocks,
     rooms: mergeById(seed.rooms, database.rooms),
+    roomPeriodRates: mergeById(seed.roomPeriodRates, database.roomPeriodRates),
     beds: mergeById(seed.beds, database.beds),
     periods: database.periods ?? seed.periods,
     bookings: database.bookings ?? seed.bookings,
@@ -114,6 +162,7 @@ export function normalizeDatabase(database: AppDatabase): AppDatabase {
     ...hostel,
     allowedSchools: hostel.allowedSchools?.length ? hostel.allowedSchools : hostel.university ? [hostel.university] : [],
   }));
+  syncRoomPeriodRates(next);
 
   next.waitingList = next.waitingList
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -124,7 +173,7 @@ export function normalizeDatabase(database: AppDatabase): AppDatabase {
     const period = next.periods.find((item) => item.id === request.periodId);
     const roomPrices = next.rooms
       .filter((room) => room.hostelId === request.hostelId)
-      .map((room) => roomPrice(room, period?.type ?? "semester"))
+      .map((room) => getRoomPriceForPeriod(next, room, period))
       .filter((price) => price > 0);
     const estimate = roomPrices.length ? Math.min(...roomPrices) * request.bedsRequired : 0;
     return { ...request, amount: estimate };
@@ -333,4 +382,59 @@ export function roomPrice(room: Room, duration: "semester" | "year" | "vacation"
   if (duration === "year") return room.pricePerYear;
   if (duration === "vacation") return room.pricePerNight * 45;
   return room.pricePerSemester;
+}
+
+export function getRoomPeriodRates(database: AppDatabase, roomId: string, options: { activeOnly?: boolean } = {}) {
+  const rates = database.roomPeriodRates.filter((rate) => rate.roomId === roomId && (!options.activeOnly || rate.active));
+  return rates.sort((left, right) => {
+    const leftPeriod = database.periods.find((period) => period.id === left.periodId);
+    const rightPeriod = database.periods.find((period) => period.id === right.periodId);
+    return (leftPeriod?.startDate ?? "").localeCompare(rightPeriod?.startDate ?? "");
+  });
+}
+
+export function getRoomPeriodRate(database: AppDatabase, roomId: string, periodId: string) {
+  return database.roomPeriodRates.find((rate) => rate.roomId === roomId && rate.periodId === periodId);
+}
+
+export function roomHasActiveRateForPeriod(database: AppDatabase, roomId: string, periodId: string) {
+  const rate = getRoomPeriodRate(database, roomId, periodId);
+  return rate ? rate.active : true;
+}
+
+export function getRoomAvailablePeriods(database: AppDatabase, room: Room) {
+  return database.periods.filter((period) => period.hostelId === room.hostelId && roomHasActiveRateForPeriod(database, room.id, period.id));
+}
+
+export function getRoomPriceForDuration(database: AppDatabase, room: Room, duration: AcademicPeriod["type"]) {
+  const durationPrices = getRoomPeriodRates(database, room.id, { activeOnly: true })
+    .map((rate) => {
+      const period = database.periods.find((item) => item.id === rate.periodId);
+      return period?.type === duration ? rate.price : null;
+    })
+    .filter((price): price is number => typeof price === "number" && price > 0);
+
+  if (durationPrices.length) return Math.min(...durationPrices);
+  return roomPrice(room, duration);
+}
+
+export function getRoomPriceForPeriod(database: AppDatabase, room: Room, period?: AcademicPeriod | null) {
+  if (!period) return getRoomPriceForDuration(database, room, "semester");
+  const rate = getRoomPeriodRate(database, room.id, period.id);
+  if (rate) return rate.price;
+  return roomPrice(room, period.type);
+}
+
+export function getRoomStartingPrice(database: AppDatabase, room: Room) {
+  const activePrices = getRoomPeriodRates(database, room.id, { activeOnly: true })
+    .map((rate) => rate.price)
+    .filter((price) => price > 0);
+
+  if (activePrices.length) return Math.min(...activePrices);
+
+  return Math.min(
+    roomPrice(room, "semester"),
+    roomPrice(room, "year"),
+    roomPrice(room, "vacation"),
+  );
 }

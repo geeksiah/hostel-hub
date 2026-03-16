@@ -101,6 +101,12 @@ export function hasAdminCapability(user: User | null | undefined, capability: Ad
 
 export function canAccessAdminPath(user: User | null | undefined, path: string) {
   if (!user || user.role !== "tenant_admin") return false;
+  if (path.startsWith("/admin/bookings")) {
+    return hasAdminCapability(user, "bookings") || hasAdminCapability(user, "waiting_list");
+  }
+  if (path.startsWith("/admin/settings")) {
+    return hasAdminCapability(user, "settings") || hasAdminCapability(user, "account");
+  }
   const required = adminPathCapabilities.find((item) => item.matcher(path));
   if (!required) return true;
   return hasAdminCapability(user, required.capability);
