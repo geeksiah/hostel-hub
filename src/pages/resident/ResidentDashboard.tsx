@@ -99,9 +99,9 @@ export default function ResidentDashboard() {
 
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-            <MetricCard title="Bookings" value={workspace.bookings.length} icon={BedDouble} />
-            <MetricCard title="Payments" value={workspace.payments.length} icon={CreditCard} />
-            <MetricCard title="Alerts" value={workspace.unreadNotifications.length} icon={Bell} variant={workspace.unreadNotifications.length > 0 ? "amber" : "default"} />
+            <MetricCard title="Bookings" value={workspace.bookings.length} icon={BedDouble} layout="stacked" />
+            <MetricCard title="Payments" value={workspace.payments.length} icon={CreditCard} layout="stacked" />
+            <MetricCard title="Alerts" value={workspace.unreadNotifications.length} icon={Bell} layout="stacked" variant={workspace.unreadNotifications.length > 0 ? "amber" : "default"} />
           </div>
 
           <div className="rounded-lg border bg-card p-5">
