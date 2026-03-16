@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import jsQR from "jsqr";
 import { Camera, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,6 +13,58 @@ import { isSecurityAdmin } from "@/modules/admin/permissions";
 import type { Booking, GroupBooking, Room, User } from "@/types";
 
 const SCANNER_IDLE_MS = 120;
+const QR_CAPTURE_MAX_DIMENSION = 1600;
+
+function getScaledDimensions(width: number, height: number) {
+  const scale = Math.min(1, QR_CAPTURE_MAX_DIMENSION / Math.max(width, height));
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function loadImageFromFile(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not load image."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function decodeQrFromImageFile(file: File) {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return null;
+
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const { width, height } = getScaledDimensions(bitmap.width, bitmap.height);
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(bitmap, 0, 0, width, height);
+    } finally {
+      bitmap.close();
+    }
+  } else {
+    const image = await loadImageFromFile(file);
+    const { width, height } = getScaledDimensions(image.width, image.height);
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(image, 0, 0, width, height);
+  }
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return jsQR(imageData.data, canvas.width, canvas.height)?.data ?? null;
+}
 
 export default function AdminCheckIn() {
   const { database, session, refreshData, currentUser } = useApp();
@@ -21,20 +74,32 @@ export default function AdminCheckIn() {
   const [verification, setVerification] = useState<{ user?: User; booking?: Booking; room?: Room; groupBooking?: GroupBooking } | null>(null);
   const [scanning, setScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const captureInputRef = useRef<HTMLInputElement | null>(null);
   const manualInputRef = useRef<HTMLInputElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanningRef = useRef(false);
   const scannerBufferRef = useRef("");
   const scannerTimeoutRef = useRef<number | null>(null);
   const securityDesk = isSecurityAdmin(currentUser);
+  const canUseLiveBarcodeScanner = typeof window !== "undefined" && "BarcodeDetector" in window;
+
+  const stopScan = () => {
+    scanningRef.current = false;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+    setScanning(false);
+  };
 
   useEffect(() => {
     return () => {
-      scanningRef.current = false;
+      stopScan();
       if (scannerTimeoutRef.current) {
         window.clearTimeout(scannerTimeoutRef.current);
       }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
@@ -142,41 +207,85 @@ export default function AdminCheckIn() {
     toast.error("No resident or group matched this token.");
   };
 
+  const handleCapturedQrImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setScanning(true);
+    try {
+      const decodedValue = await decodeQrFromImageFile(file);
+      if (!decodedValue) {
+        toast.error("No QR code was detected in the captured image.");
+        return;
+      }
+      setManualToken(decodedValue);
+      await verifyToken(decodedValue);
+    } catch {
+      toast.error("The captured image could not be read.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const startScan = async () => {
+    if (scanning) {
+      stopScan();
+      return;
+    }
+
+    if (!canUseLiveBarcodeScanner) {
+      captureInputRef.current?.click();
+      return;
+    }
+
     if (!("mediaDevices" in navigator) || !navigator.mediaDevices.getUserMedia) {
       toast.error("Camera access is not available in this browser.");
       return;
     }
-    if (!("BarcodeDetector" in window)) {
-      toast.info("BarcodeDetector is unavailable. Use manual verification below.");
-      return;
-    }
 
-    const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    streamRef.current = stream;
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-    }
-    scanningRef.current = true;
-    setScanning(true);
-
-    const tick = async () => {
-      if (!videoRef.current || !scanningRef.current) return;
-      const codes = await detector.detect(videoRef.current);
-      const value = codes[0]?.rawValue;
-      if (value) {
-        await verifyToken(value);
-        scanningRef.current = false;
-        stream.getTracks().forEach((track) => track.stop());
-        setScanning(false);
-        return;
+    try {
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
-      requestAnimationFrame(() => void tick());
-    };
+      scanningRef.current = true;
+      setScanning(true);
 
-    requestAnimationFrame(() => void tick());
+      const tick = async () => {
+        if (!videoRef.current || !scanningRef.current) return;
+        if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+          requestAnimationFrame(() => void tick());
+          return;
+        }
+
+        try {
+          const codes = await detector.detect(videoRef.current);
+          const value = codes[0]?.rawValue?.trim();
+          if (value) {
+            stopScan();
+            setManualToken(value);
+            await verifyToken(value);
+            return;
+          }
+        } catch {
+          // Keep polling frames while the browser warms up the video feed.
+        }
+
+        requestAnimationFrame(() => void tick());
+      };
+
+      requestAnimationFrame(() => void tick());
+    } catch {
+      stopScan();
+      toast.error("The live camera could not be started on this device.");
+    }
   };
 
   const verifiedHostel = verification?.booking?.hostelId ?? verification?.groupBooking?.hostelId ?? verification?.user?.hostelId;
@@ -194,6 +303,14 @@ export default function AdminCheckIn() {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={captureInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => void handleCapturedQrImage(event)}
+      />
       <PageHeader
         title={securityDesk ? "Security scanner" : "Check-in / check-out"}
         description={
@@ -320,7 +437,7 @@ export default function AdminCheckIn() {
               <p className="text-xs text-muted-foreground">
                 Supported input: QR payloads, resident IDs, and organizer emails. Most external scanners send an automatic Enter or Tab; idle scans also auto-submit after a short pause.
               </p>
-              <video ref={videoRef} className="aspect-video w-full rounded-lg bg-muted object-cover" muted playsInline />
+              <video ref={videoRef} className="aspect-video w-full rounded-lg bg-muted object-cover" muted playsInline autoPlay />
             </div>
           </div>
         )}
@@ -332,7 +449,7 @@ export default function AdminCheckIn() {
               <p className="mt-1 text-sm text-muted-foreground">Scan or paste a resident or group QR token to verify identity and current stay.</p>
 
               <div className="mt-4 grid gap-4">
-                <video ref={videoRef} className="aspect-video w-full rounded-lg bg-muted object-cover" muted playsInline />
+                <video ref={videoRef} className="aspect-video w-full rounded-lg bg-muted object-cover" muted playsInline autoPlay />
                 <Button variant="outline" onClick={() => void startScan()}>
                   <Camera className="mr-2 h-4 w-4" />
                   {scanning ? "Scanning..." : "Start camera scan"}
